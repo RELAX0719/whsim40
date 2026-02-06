@@ -5013,8 +5013,10 @@ function handlePanEnd() {
 // 將螢幕座標轉換為遊戲座標
 function screenToGame(screenX, screenY) {
   const rect = canvas.getBoundingClientRect();
-  const x = (screenX - rect.left - viewOffsetX) / viewZoom;
-  const y = (screenY - rect.top - viewOffsetY) / viewZoom;
+  const borderLeft = parseFloat(getComputedStyle(canvas).borderLeftWidth) || 0;
+  const borderTop = parseFloat(getComputedStyle(canvas).borderTopWidth) || 0;
+  const x = (screenX - rect.left - borderLeft - viewOffsetX) / viewZoom;
+  const y = (screenY - rect.top - borderTop - viewOffsetY) / viewZoom;
   return { x, y };
 }
 
@@ -5153,8 +5155,11 @@ function setupCanvasEvents() {
   canvas.onclick = (e) => {
     // 轉換螢幕座標到遊戲座標（考慮縮放和平移）
     const rect = canvas.getBoundingClientRect();
-    const screenX = e.clientX - rect.left;
-    const screenY = e.clientY - rect.top;
+    // 取得 canvas 的邊框寬度（避免偏移）
+    const borderLeft = parseFloat(getComputedStyle(canvas).borderLeftWidth) || 0;
+    const borderTop = parseFloat(getComputedStyle(canvas).borderTopWidth) || 0;
+    const screenX = e.clientX - rect.left - borderLeft;
+    const screenY = e.clientY - rect.top - borderTop;
     const x = (screenX - viewOffsetX) / viewZoom;
     const y = (screenY - viewOffsetY) / viewZoom;
 
