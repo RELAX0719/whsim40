@@ -971,12 +971,53 @@ function switchGameMode(mode) {
   isOnlineMode = (mode === 'online');
   document.getElementById('onlinePanel').style.display = isOnlineMode ? 'block' : 'none';
 
+  const army1Builder = document.getElementById('army1Builder');
+  const army2Builder = document.getElementById('army2Builder');
+
   // 線上模式時隱藏AI選項
   if (isOnlineMode) {
     document.getElementById('ai1ModeToggle').checked = false;
     document.getElementById('ai2ModeToggle').checked = false;
     toggleAI1Mode();
     toggleAI2Mode();
+
+    // 提示：先建立/加入房間
+    document.getElementById('p1ModeLabel').textContent = '玩家一（房主）';
+    document.getElementById('p2ModeLabel').textContent = '玩家二（加入者）';
+  } else {
+    // 本地模式：恢復正常
+    document.getElementById('p1ModeLabel').textContent = '玩家一';
+    document.getElementById('p2ModeLabel').textContent = '玩家二';
+    army1Builder.style.opacity = '1';
+    army1Builder.style.pointerEvents = 'auto';
+    army2Builder.style.opacity = '1';
+    army2Builder.style.pointerEvents = 'auto';
+  }
+}
+
+// 根據玩家身份顯示對應的設定區
+function updateOnlineSetupUI() {
+  if (!isOnlineMode) return;
+
+  const army1Builder = document.getElementById('army1Builder');
+  const army2Builder = document.getElementById('army2Builder');
+
+  if (onlinePlayerId === 1) {
+    // 房主：只能編輯玩家一
+    army1Builder.style.opacity = '1';
+    army1Builder.style.pointerEvents = 'auto';
+    army2Builder.style.opacity = '0.5';
+    army2Builder.style.pointerEvents = 'none';
+    document.getElementById('p1ModeLabel').textContent = '👤 你的軍隊';
+    document.getElementById('p2ModeLabel').textContent = '⏳ 等待對手...';
+  } else if (onlinePlayerId === 2) {
+    // 加入者：只能編輯玩家二
+    army1Builder.style.opacity = '0.5';
+    army1Builder.style.pointerEvents = 'none';
+    army2Builder.style.opacity = '1';
+    army2Builder.style.pointerEvents = 'auto';
+    document.getElementById('p1ModeLabel').textContent = '👑 對手軍隊';
+    document.getElementById('p2ModeLabel').textContent = '👤 你的軍隊';
   }
 }
 
@@ -1007,6 +1048,9 @@ async function createRoom() {
   document.getElementById('roomCodeDisplay').textContent = currentRoomCode;
   document.getElementById('roomStatus').textContent = '等待對手加入...';
   document.getElementById('roomStatus').style.color = 'var(--gold)';
+
+  // 更新軍隊設定UI
+  updateOnlineSetupUI();
 
   // 房間清理（斷線時刪除）
   roomRef.onDisconnect().remove();
@@ -1057,6 +1101,9 @@ async function joinRoom() {
   document.getElementById('roomCodeDisplay').textContent = currentRoomCode;
   document.getElementById('roomStatus').textContent = '已連接！等待房主開始...';
   document.getElementById('roomStatus').style.color = 'var(--green)';
+
+  // 更新軍隊設定UI
+  updateOnlineSetupUI();
 
   log('已加入房間: ' + currentRoomCode, 'info');
 }
