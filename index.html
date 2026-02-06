@@ -173,7 +173,7 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
 }
 #gameCanvas {
   display: block;
-  border: 1px solid rgba(255,255,255,0.1);
+  border: none;
   box-shadow: 0 0 20px rgba(0,0,0,0.5);
 }
 
@@ -534,6 +534,10 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
   .setup-container { grid-template-columns: 1fr; }
 }
 </style>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
 </head>
 <body>
 
@@ -542,6 +546,42 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
   <div class="setup-header">
     <h1>⚔️ 戰鎚 40,000 ⚔️</h1>
     <p>第十版核心規則 - 軍表配置</p>
+  </div>
+
+  <!-- 連線對戰選項 -->
+  <div style="max-width: 600px; margin: 0 auto 20px; padding: 15px; background: rgba(59,130,246,0.15); border: 1px solid var(--blue); border-radius: 10px;">
+    <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; justify-content: center; margin-bottom: 10px;">
+      <span style="font-weight: bold; color: var(--blue); font-size: 16px;">🌐 遊戲模式</span>
+      <select id="gameMode" onchange="switchGameMode(this.value)" style="padding: 8px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; color: var(--txt); font-size: 14px;">
+        <option value="local">本地對戰 / AI</option>
+        <option value="online">線上對戰</option>
+      </select>
+    </div>
+
+    <!-- 線上對戰面板 -->
+    <div id="onlinePanel" style="display: none; margin-top: 15px; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 8px;">
+      <div id="roomLobby">
+        <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+          <button onclick="createRoom()" style="padding: 12px 24px; background: linear-gradient(135deg, #22c55e, #16a34a); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 14px;">
+            ➕ 建立房間
+          </button>
+          <div style="display: flex; gap: 5px;">
+            <input type="text" id="joinRoomCode" placeholder="輸入房間碼" maxlength="6" style="width: 120px; padding: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; color: var(--txt); text-align: center; font-size: 16px; text-transform: uppercase;">
+            <button onclick="joinRoom()" style="padding: 12px 24px; background: linear-gradient(135deg, #3b82f6, #2563eb); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 14px;">
+              🚪 加入
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 房間資訊（建立/加入後顯示） -->
+      <div id="roomInfo" style="display: none; text-align: center;">
+        <div style="font-size: 14px; color: var(--muted); margin-bottom: 10px;">房間碼</div>
+        <div id="roomCodeDisplay" style="font-size: 32px; font-weight: bold; color: var(--gold); letter-spacing: 8px; margin-bottom: 10px;"></div>
+        <div id="roomStatus" style="font-size: 14px; color: var(--green);">等待對手加入...</div>
+        <button onclick="leaveRoom()" style="margin-top: 15px; padding: 8px 16px; background: rgba(239,68,68,0.2); border: 1px solid var(--red); border-radius: 6px; color: var(--red); cursor: pointer;">離開房間</button>
+      </div>
+    </div>
   </div>
 
   <!-- 點數上限設定 -->
@@ -893,6 +933,317 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
 </div>
 
 <script>
+// ========== Firebase 連線系統 ==========
+const firebaseConfig = {
+  apiKey: "AIzaSyBfrS-b2dpZUt8yJvSYKDap0AjZsy8UJ0I",
+  authDomain: "wh40k-game.firebaseapp.com",
+  databaseURL: "https://wh40k-game-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "wh40k-game",
+  storageBucket: "wh40k-game.firebasestorage.app",
+  messagingSenderId: "1074789310261",
+  appId: "1:1074789310261:web:4a1a81a63ef48e0589f67c"
+};
+
+// 初始化 Firebase
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+
+// 連線狀態
+let isOnlineMode = false;
+let currentRoomCode = null;
+let isHost = false;  // 房主 = 玩家1
+let onlinePlayerId = null;  // 1 或 2
+let roomRef = null;
+let gameStateRef = null;
+
+// 產生隨機房間碼
+function generateRoomCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
+// 切換遊戲模式
+function switchGameMode(mode) {
+  isOnlineMode = (mode === 'online');
+  document.getElementById('onlinePanel').style.display = isOnlineMode ? 'block' : 'none';
+
+  // 線上模式時隱藏AI選項
+  if (isOnlineMode) {
+    document.getElementById('ai1ModeToggle').checked = false;
+    document.getElementById('ai2ModeToggle').checked = false;
+    toggleAI1Mode();
+    toggleAI2Mode();
+  }
+}
+
+// 建立房間
+async function createRoom() {
+  currentRoomCode = generateRoomCode();
+  isHost = true;
+  onlinePlayerId = 1;
+
+  roomRef = database.ref('rooms/' + currentRoomCode);
+
+  // 建立房間資料
+  await roomRef.set({
+    host: onlinePlayerId,
+    status: 'waiting',
+    createdAt: firebase.database.ServerValue.TIMESTAMP,
+    players: {
+      1: { ready: false, faction: document.getElementById('p1Faction').value }
+    }
+  });
+
+  // 監聽房間狀態
+  listenToRoom();
+
+  // 更新UI
+  document.getElementById('roomLobby').style.display = 'none';
+  document.getElementById('roomInfo').style.display = 'block';
+  document.getElementById('roomCodeDisplay').textContent = currentRoomCode;
+  document.getElementById('roomStatus').textContent = '等待對手加入...';
+  document.getElementById('roomStatus').style.color = 'var(--gold)';
+
+  // 房間清理（斷線時刪除）
+  roomRef.onDisconnect().remove();
+
+  log('房間已建立: ' + currentRoomCode, 'info');
+}
+
+// 加入房間
+async function joinRoom() {
+  const code = document.getElementById('joinRoomCode').value.toUpperCase().trim();
+  if (code.length !== 6) {
+    alert('請輸入6位房間碼');
+    return;
+  }
+
+  currentRoomCode = code;
+  roomRef = database.ref('rooms/' + currentRoomCode);
+
+  // 檢查房間是否存在
+  const snapshot = await roomRef.once('value');
+  if (!snapshot.exists()) {
+    alert('找不到此房間');
+    return;
+  }
+
+  const roomData = snapshot.val();
+  if (roomData.status !== 'waiting') {
+    alert('此房間已開始遊戲');
+    return;
+  }
+
+  isHost = false;
+  onlinePlayerId = 2;
+
+  // 加入房間
+  await roomRef.child('players/2').set({
+    ready: false,
+    faction: document.getElementById('p2Faction').value
+  });
+  await roomRef.child('status').set('ready');
+
+  // 監聽房間狀態
+  listenToRoom();
+
+  // 更新UI
+  document.getElementById('roomLobby').style.display = 'none';
+  document.getElementById('roomInfo').style.display = 'block';
+  document.getElementById('roomCodeDisplay').textContent = currentRoomCode;
+  document.getElementById('roomStatus').textContent = '已連接！等待房主開始...';
+  document.getElementById('roomStatus').style.color = 'var(--green)';
+
+  log('已加入房間: ' + currentRoomCode, 'info');
+}
+
+// 監聽房間狀態
+function listenToRoom() {
+  if (!roomRef) return;
+
+  roomRef.on('value', (snapshot) => {
+    const data = snapshot.val();
+    if (!data) {
+      // 房間被刪除
+      alert('房間已關閉');
+      leaveRoom();
+      return;
+    }
+
+    // 更新狀態顯示
+    if (data.status === 'ready' && isHost) {
+      document.getElementById('roomStatus').textContent = '對手已加入！可以開始遊戲';
+      document.getElementById('roomStatus').style.color = 'var(--green)';
+    }
+
+    // 遊戲開始
+    if (data.status === 'playing' && data.gameState) {
+      // 同步遊戲狀態
+      if (!isHost) {
+        syncGameStateFromFirebase(data.gameState);
+      }
+    }
+
+    // 監聽遊戲動作
+    if (data.lastAction && data.lastAction.player !== onlinePlayerId) {
+      handleRemoteAction(data.lastAction);
+    }
+  });
+}
+
+// 離開房間
+function leaveRoom() {
+  if (roomRef) {
+    if (isHost) {
+      roomRef.remove();
+    } else {
+      roomRef.child('players/2').remove();
+      roomRef.child('status').set('waiting');
+    }
+    roomRef.off();
+    roomRef = null;
+  }
+
+  currentRoomCode = null;
+  isHost = false;
+  onlinePlayerId = null;
+
+  document.getElementById('roomLobby').style.display = 'block';
+  document.getElementById('roomInfo').style.display = 'none';
+  document.getElementById('joinRoomCode').value = '';
+}
+
+// 同步遊戲狀態到 Firebase
+function syncGameStateToFirebase() {
+  if (!isOnlineMode || !roomRef) return;
+
+  const stateToSync = {
+    phase: gameState.phase,
+    round: gameState.round,
+    currentPlayer: gameState.currentPlayer,
+    units: gameState.units.map(u => ({
+      id: u.id,
+      x: u.x,
+      y: u.y,
+      currentHP: u.currentHP,
+      alive: u.alive,
+      deployed: u.deployed,
+      hasMoved: u.hasMoved,
+      hasShot: u.hasShot,
+      hasCharged: u.hasCharged,
+      hasFought: u.hasFought
+    })),
+    vp: gameState.vp,
+    cp: gameState.cp,
+    objectives: gameState.objectives
+  };
+
+  roomRef.child('gameState').set(stateToSync);
+}
+
+// 從 Firebase 同步遊戲狀態
+function syncGameStateFromFirebase(remoteState) {
+  if (!remoteState) return;
+
+  gameState.phase = remoteState.phase;
+  gameState.round = remoteState.round;
+  gameState.currentPlayer = remoteState.currentPlayer;
+  gameState.vp = remoteState.vp || { 1: 0, 2: 0 };
+  gameState.cp = remoteState.cp || { 1: 0, 2: 0 };
+
+  // 同步單位狀態
+  if (remoteState.units) {
+    remoteState.units.forEach(remoteUnit => {
+      const localUnit = gameState.units.find(u => u.id === remoteUnit.id);
+      if (localUnit) {
+        localUnit.x = remoteUnit.x;
+        localUnit.y = remoteUnit.y;
+        localUnit.currentHP = remoteUnit.currentHP;
+        localUnit.alive = remoteUnit.alive;
+        localUnit.deployed = remoteUnit.deployed;
+        localUnit.hasMoved = remoteUnit.hasMoved;
+        localUnit.hasShot = remoteUnit.hasShot;
+        localUnit.hasCharged = remoteUnit.hasCharged;
+        localUnit.hasFought = remoteUnit.hasFought;
+      }
+    });
+  }
+
+  // 更新 UI 元素
+  if (typeof updateUnitLists === 'function') updateUnitLists();
+  if (typeof updateCPDisplay === 'function') updateCPDisplay();
+  if (typeof updatePhaseIndicator === 'function') updatePhaseIndicator();
+  document.getElementById("roundNum").textContent = gameState.round;
+  document.getElementById("roundDisplay").textContent = gameState.round;
+
+  // 顯示當前玩家
+  const playerName = gameState.currentPlayer === 1 ? "玩家一" : "玩家二";
+  document.getElementById("currentPlayerName").textContent = playerName;
+
+  // 提示是否為自己的回合
+  if (isMyTurn()) {
+    log(`輪到你的回合！`, 'phase');
+  }
+
+  render();
+}
+
+// 發送動作到 Firebase
+function sendAction(action) {
+  if (!isOnlineMode || !roomRef) return;
+
+  roomRef.child('lastAction').set({
+    ...action,
+    player: onlinePlayerId,
+    timestamp: firebase.database.ServerValue.TIMESTAMP
+  });
+
+  // 同步遊戲狀態
+  syncGameStateToFirebase();
+}
+
+// 處理遠端動作
+function handleRemoteAction(action) {
+  if (!action || action.player === onlinePlayerId) return;
+
+  switch (action.type) {
+    case 'move':
+      const moveUnit = gameState.units.find(u => u.id === action.unitId);
+      if (moveUnit) {
+        moveUnit.x = action.x;
+        moveUnit.y = action.y;
+        moveUnit.hasMoved = true;
+      }
+      break;
+    case 'attack':
+      // 攻擊動作會通過 gameState 同步
+      break;
+    case 'endTurn':
+      // 回合結束
+      break;
+    case 'deploy':
+      const deployUnit = gameState.units.find(u => u.id === action.unitId);
+      if (deployUnit) {
+        deployUnit.x = action.x;
+        deployUnit.y = action.y;
+        deployUnit.deployed = true;
+      }
+      break;
+  }
+
+  render();
+}
+
+// 檢查是否為當前玩家的回合
+function isMyTurn() {
+  if (!isOnlineMode) return true;
+  return gameState.currentPlayer === onlinePlayerId;
+}
+
 // ========== 常數 ==========
 // INCH = 像素/英吋，控制整體場景大小
 // 10 = 小場景（適合小螢幕）, 15 = 中等, 20 = 大場景
@@ -4598,6 +4949,13 @@ function autoDeployIfNeeded() {
 
 function handleDeployClick(canvasX, canvasY) {
   const player = gameState.deploy.deployingPlayer;
+
+  // 線上模式：只能部署自己的單位
+  if (isOnlineMode && player !== onlinePlayerId) {
+    log(`等待玩家${player}部署...`, 'info');
+    return;
+  }
+
   const w = gameState.canvasWidth || canvas.getBoundingClientRect().width;
   // deployZone 已經包含縮放
   const deployZoneWidth = gameState.deployZone || 12 * INCH;
@@ -4637,6 +4995,11 @@ function handleDeployClick(canvasX, canvasY) {
   undeployed.visible = true;
 
   log(`${undeployed.name} 已部署`, "info");
+
+  // 線上模式同步部署
+  if (isOnlineMode) {
+    sendAction({ type: 'deploy', unitId: undeployed.id, x: canvasX, y: canvasY });
+  }
 
   if (player === 1) {
     gameState.deploy.p1Deployed = true;
@@ -5013,10 +5376,8 @@ function handlePanEnd() {
 // 將螢幕座標轉換為遊戲座標
 function screenToGame(screenX, screenY) {
   const rect = canvas.getBoundingClientRect();
-  const borderLeft = parseFloat(getComputedStyle(canvas).borderLeftWidth) || 0;
-  const borderTop = parseFloat(getComputedStyle(canvas).borderTopWidth) || 0;
-  const x = (screenX - rect.left - borderLeft - viewOffsetX) / viewZoom;
-  const y = (screenY - rect.top - borderTop - viewOffsetY) / viewZoom;
+  const x = (screenX - rect.left - viewOffsetX) / viewZoom;
+  const y = (screenY - rect.top - viewOffsetY) / viewZoom;
   return { x, y };
 }
 
@@ -5155,11 +5516,8 @@ function setupCanvasEvents() {
   canvas.onclick = (e) => {
     // 轉換螢幕座標到遊戲座標（考慮縮放和平移）
     const rect = canvas.getBoundingClientRect();
-    // 取得 canvas 的邊框寬度（避免偏移）
-    const borderLeft = parseFloat(getComputedStyle(canvas).borderLeftWidth) || 0;
-    const borderTop = parseFloat(getComputedStyle(canvas).borderTopWidth) || 0;
-    const screenX = e.clientX - rect.left - borderLeft;
-    const screenY = e.clientY - rect.top - borderTop;
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
     const x = (screenX - viewOffsetX) / viewZoom;
     const y = (screenY - viewOffsetY) / viewZoom;
 
@@ -5180,6 +5538,12 @@ function setupCanvasEvents() {
 }
 
 async function handleCanvasClick(x, y) {
+  // 線上模式：檢查是否為自己的回合
+  if (isOnlineMode && !isMyTurn()) {
+    log('等待對手行動...', 'info');
+    return;
+  }
+
   // 部署階段處理
   if (gameState.phase === "deployment") {
     handleDeployClick(x, y);
@@ -5225,6 +5589,12 @@ async function handleCanvasClick(x, y) {
       unit.hasMoved = true;
       checkCover(unit);
       log(`${unit.name} 移動到新位置`, "info");
+
+      // 線上模式同步
+      if (isOnlineMode) {
+        sendAction({ type: 'move', unitId: unit.id, x: x, y: y });
+      }
+
       clearAction();
       updateUnitLists();
       render();
@@ -6127,6 +6497,11 @@ async function performAttack(attacker, target, weapon, mode) {
   }
 
   checkVictory();
+
+  // 線上模式同步攻擊結果
+  if (isOnlineMode) {
+    syncGameStateToFirebase();
+  }
 }
 
 
@@ -6346,6 +6721,12 @@ async function nextPhase() {
 }
 
 function endTurn() {
+  // 線上模式檢查是否為自己的回合
+  if (isOnlineMode && !isMyTurn()) {
+    log('不是你的回合！', 'miss');
+    return;
+  }
+
   // 清除所有視覺特效和UI
   clearAllUIEffects();
 
@@ -6408,8 +6789,23 @@ function endTurn() {
     (ai2Enabled ? "AI-2" : "玩家二");
   log(`=== ${currentName} 回合 ===`, "phase");
 
+  // 線上模式：同步狀態並通知對手
+  if (isOnlineMode) {
+    sendAction({ type: 'endTurn' });
+    syncGameStateToFirebase();
+  }
+
   // 根據是否AI決定執行方式
   const isAITurn = (gameState.currentPlayer === 1 && ai1Enabled) || (gameState.currentPlayer === 2 && ai2Enabled);
+
+  // 線上模式不使用AI
+  if (isOnlineMode) {
+    if (isMyTurn()) {
+      startCommandPhase();
+    }
+    return;
+  }
+
   if (isAITurn) {
     // AI回合：由runAITurn處理所有階段
     setTimeout(() => runAITurn(), 500);
