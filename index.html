@@ -580,7 +580,7 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
   <div class="setup-header">
     <h1>⚔️ 戰鎚 40,000 ⚔️</h1>
     <p>第十版核心規則 - 軍表配置</p>
-    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.3.3 (2026-02-07)</p>
+    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.3.6 (2026-02-07)</p>
   </div>
 
   <!-- 連線對戰選項 -->
@@ -1198,11 +1198,25 @@ function listenToRoom() {
         // 確保自己的軍隊已同步（以防萬一）
         syncArmyToFirebase(2);
 
-        // 載入房主的軍隊（應該已經即時同步了）
-        roomRef.child('armies/1').once('value').then((snapshot) => {
-          if (snapshot.exists()) {
-            const hostArmy = snapshot.val();
+        // 載入房主的戰場設定和軍隊
+        const loadPromises = [
+          roomRef.child('armies/1').once('value'),
+          roomRef.child('battlefieldSettings').once('value')
+        ];
+
+        Promise.all(loadPromises).then(([armySnapshot, settingsSnapshot]) => {
+          // 載入房主軍隊
+          if (armySnapshot.exists()) {
+            const hostArmy = armySnapshot.val();
             loadEnemyArmy(hostArmy, 1);
+          }
+
+          // 使用房主的戰場設定
+          if (settingsSnapshot.exists()) {
+            const settings = settingsSnapshot.val();
+            selectedBattlefieldSize = settings.size || selectedBattlefieldSize;
+            selectedMapScenario = settings.map || selectedMapScenario;
+            console.warn('[Player 2] 使用房主戰場設定:', settings);
           }
 
           // 開始遊戲
@@ -1323,19 +1337,24 @@ function syncGameStateToFirebase() {
     return;
   }
 
+  // 取得本地戰場尺寸用於計算相對座標
+  const localW = gameState.canvasWidth || 600;
+  const localH = gameState.canvasHeight || 440;
+
   const stateToSync = {
     phase: gameState.phase,
     round: gameState.round,
     currentPlayer: gameState.currentPlayer,
+    // 使用相對座標（百分比）同步單位位置
     units: gameState.units.map(u => ({
       id: u.id,
-      x: u.x,
-      y: u.y,
+      xPercent: u.x / localW,  // 相對X座標 (0-1)
+      yPercent: u.y / localH,  // 相對Y座標 (0-1)
       currentHP: u.currentHP,
       maxHP: u.maxHP,
       alive: u.alive,
       deployed: u.deployed,
-      visible: u.visible !== false,  // 同步可見性
+      visible: u.visible !== false,
       hasMoved: u.hasMoved,
       hasShot: u.hasShot,
       hasCharged: u.hasCharged,
@@ -1344,7 +1363,7 @@ function syncGameStateToFirebase() {
       inCover: u.inCover || false,
       usedOneUseWeapons: u.usedOneUseWeapons || [],
       activeStratagemEffects: u.activeStratagemEffects || [],
-      battleHistory: u.battleHistory || []  // 同步戰鬥歷史
+      battleHistory: u.battleHistory || []
     })),
     vp: gameState.vp,
     cp: gameState.cp,
@@ -1381,7 +1400,11 @@ function syncGameStateFromFirebase(remoteState) {
     gameState.deploy = remoteState.deploy;
   }
 
-  // 同步單位狀態
+  // 取得本地戰場尺寸用於座標轉換
+  const localW = gameState.canvasWidth || 600;
+  const localH = gameState.canvasHeight || 440;
+
+  // 同步單位狀態（使用相對座標轉換為本地座標）
   if (remoteState.units) {
     let syncedCount = 0;
     let missingCount = 0;
@@ -1389,13 +1412,20 @@ function syncGameStateFromFirebase(remoteState) {
     remoteState.units.forEach(remoteUnit => {
       const localUnit = gameState.units.find(u => u.id === remoteUnit.id);
       if (localUnit) {
-        localUnit.x = remoteUnit.x;
-        localUnit.y = remoteUnit.y;
+        // 將相對座標轉換為本地像素座標
+        if (remoteUnit.xPercent !== undefined && remoteUnit.yPercent !== undefined) {
+          localUnit.x = remoteUnit.xPercent * localW;
+          localUnit.y = remoteUnit.yPercent * localH;
+        } else if (remoteUnit.x !== undefined && remoteUnit.y !== undefined) {
+          // 向後兼容：如果還是絕對座標，直接使用
+          localUnit.x = remoteUnit.x;
+          localUnit.y = remoteUnit.y;
+        }
         localUnit.currentHP = remoteUnit.currentHP;
         if (remoteUnit.maxHP) localUnit.maxHP = remoteUnit.maxHP;
         localUnit.alive = remoteUnit.alive;
         localUnit.deployed = remoteUnit.deployed;
-        localUnit.visible = remoteUnit.visible !== false;  // 同步可見性
+        localUnit.visible = remoteUnit.visible !== false;
         localUnit.hasMoved = remoteUnit.hasMoved;
         localUnit.hasShot = remoteUnit.hasShot;
         localUnit.hasCharged = remoteUnit.hasCharged;
@@ -1404,7 +1434,7 @@ function syncGameStateFromFirebase(remoteState) {
         localUnit.inCover = remoteUnit.inCover || false;
         if (remoteUnit.usedOneUseWeapons) localUnit.usedOneUseWeapons = remoteUnit.usedOneUseWeapons;
         if (remoteUnit.activeStratagemEffects) localUnit.activeStratagemEffects = remoteUnit.activeStratagemEffects;
-        if (remoteUnit.battleHistory) localUnit.battleHistory = remoteUnit.battleHistory;  // 同步戰鬥歷史
+        if (remoteUnit.battleHistory) localUnit.battleHistory = remoteUnit.battleHistory;
         syncedCount++;
       } else {
         console.warn('[syncGameState] 找不到本地單位:', remoteUnit.id);
@@ -5326,6 +5356,12 @@ function startBattle() {
     roomRef.child('status').set('playing');
     roomRef.child('gameStarted').set(true);
 
+    // 同步戰場設定給玩家二
+    roomRef.child('battlefieldSettings').set({
+      size: selectedBattlefieldSize,
+      map: selectedMapScenario
+    });
+
     // 載入對手軍隊資料（應該已經即時同步了）
     roomRef.child('armies/2').once('value').then((snapshot) => {
       if (snapshot.exists()) {
@@ -5978,6 +6014,127 @@ function handlePanEnd() {
   isDragging = false;
 }
 
+// ========== 觸控支援 ==========
+let touchStartDist = 0;  // 雙指初始距離
+let touchStartZoom = 1;  // 雙指開始時的縮放
+let lastTouchX = 0;
+let lastTouchY = 0;
+let touchStartX = 0;
+let touchStartY = 0;
+let touchStartTime = 0;
+let isTouchPanning = false;
+let isTouchZooming = false;
+
+function handleTouchStart(e) {
+  if (e.touches.length === 2) {
+    // 雙指縮放開始
+    e.preventDefault();
+    const touch1 = e.touches[0];
+    const touch2 = e.touches[1];
+    touchStartDist = Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY);
+    touchStartZoom = viewZoom;
+    isTouchPanning = false;
+    isTouchZooming = true;
+  } else if (e.touches.length === 1) {
+    // 記錄起始位置和時間
+    const touch = e.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    lastTouchX = touch.clientX;
+    lastTouchY = touch.clientY;
+    touchStartTime = Date.now();
+    isTouchPanning = false;
+    isTouchZooming = false;
+  }
+}
+
+function handleTouchMove(e) {
+  if (e.touches.length === 2) {
+    // 雙指縮放
+    e.preventDefault();
+    const touch1 = e.touches[0];
+    const touch2 = e.touches[1];
+    const currentDist = Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY);
+
+    if (touchStartDist > 0) {
+      const scale = currentDist / touchStartDist;
+      const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, touchStartZoom * scale));
+
+      // 以雙指中心為縮放中心
+      const rect = canvas.getBoundingClientRect();
+      const centerX = (touch1.clientX + touch2.clientX) / 2 - rect.left;
+      const centerY = (touch1.clientY + touch2.clientY) / 2 - rect.top;
+
+      const zoomRatio = newZoom / viewZoom;
+      viewOffsetX = centerX - (centerX - viewOffsetX) * zoomRatio;
+      viewOffsetY = centerY - (centerY - viewOffsetY) * zoomRatio;
+      viewZoom = newZoom;
+
+      updateZoomDisplay();
+      render();
+    }
+  } else if (e.touches.length === 1) {
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - lastTouchX;
+    const deltaY = touch.clientY - lastTouchY;
+    const totalDeltaX = Math.abs(touch.clientX - touchStartX);
+    const totalDeltaY = Math.abs(touch.clientY - touchStartY);
+
+    // 移動超過閾值，啟動平移
+    if (totalDeltaX > 15 || totalDeltaY > 15) {
+      if (!isTouchPanning) {
+        isTouchPanning = true;
+        e.preventDefault();
+      }
+    }
+
+    if (isTouchPanning) {
+      e.preventDefault();
+      viewOffsetX += deltaX;
+      viewOffsetY += deltaY;
+      render();
+    }
+
+    lastTouchX = touch.clientX;
+    lastTouchY = touch.clientY;
+  }
+}
+
+function handleTouchEnd(e) {
+  if (e.touches.length === 0) {
+    // 如果沒有平移或縮放，視為點擊
+    if (!isTouchPanning && !isTouchZooming) {
+      const touchDuration = Date.now() - touchStartTime;
+      const deltaX = Math.abs(lastTouchX - touchStartX);
+      const deltaY = Math.abs(lastTouchY - touchStartY);
+
+      // 快速點擊且沒有移動太多 = 點擊事件
+      if (touchDuration < 300 && deltaX < 15 && deltaY < 15) {
+        const rect = canvas.getBoundingClientRect();
+        const screenX = touchStartX - rect.left;
+        const screenY = touchStartY - rect.top;
+        const x = (screenX - viewOffsetX) / viewZoom;
+        const y = (screenY - viewOffsetY) / viewZoom;
+        handleCanvasClick(x, y);
+      }
+    }
+
+    touchStartDist = 0;
+    isTouchPanning = false;
+    isTouchZooming = false;
+  } else if (e.touches.length === 1) {
+    // 從雙指變單指，重置平移起點
+    const touch = e.touches[0];
+    lastTouchX = touch.clientX;
+    lastTouchY = touch.clientY;
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    touchStartTime = Date.now();
+    touchStartDist = 0;
+    isTouchZooming = false;
+  }
+}
+
 // 將螢幕座標轉換為遊戲座標
 function screenToGame(screenX, screenY) {
   const rect = canvas.getBoundingClientRect();
@@ -6165,6 +6322,12 @@ function setupCanvasEvents() {
   canvas.addEventListener('mousemove', handlePanMove);
   canvas.addEventListener('mouseup', handlePanEnd);
   canvas.addEventListener('mouseleave', handlePanEnd);
+
+  // 觸控事件支援（平板/手機）
+  canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+  canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+  canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+  canvas.addEventListener('touchcancel', handleTouchEnd, { passive: false });
 
   // 禁止右鍵選單
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
