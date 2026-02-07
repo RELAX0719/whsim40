@@ -546,6 +546,7 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
   <div class="setup-header">
     <h1>⚔️ 戰鎚 40,000 ⚔️</h1>
     <p>第十版核心規則 - 軍表配置</p>
+    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.0.1 (2026-02-07)</p>
   </div>
 
   <!-- 連線對戰選項 -->
@@ -1028,6 +1029,7 @@ async function createRoom() {
   currentRoomCode = generateRoomCode();
   isHost = true;
   onlinePlayerId = 1;
+  isOnlineMode = true;  // 確保設為線上模式
 
   roomRef = database.ref('rooms/' + currentRoomCode);
 
@@ -1089,6 +1091,7 @@ async function joinRoom() {
 
   isHost = false;
   onlinePlayerId = 2;
+  isOnlineMode = true;  // 確保設為線上模式
 
   // 加入房間
   await roomRef.child('players/2').set({
@@ -1134,10 +1137,18 @@ function listenToRoom() {
       checkStartButton();
     }
 
+    // 即時顯示對手的軍隊配置（設定階段）
+    const setupScreenEl = document.getElementById('setupScreen');
+    if (setupScreenEl && setupScreenEl.style.display !== 'none' && data.armies) {
+      const opponentId = isHost ? 2 : 1;
+      if (data.armies[opponentId] && data.armies[opponentId].roster) {
+        displayOpponentArmy(opponentId, data.armies[opponentId]);
+      }
+    }
+
     // 遊戲開始 - 非房主收到開始訊號
     if (data.gameStarted && !isHost) {
-      const setupScreen = document.getElementById('setupScreen');
-      if (setupScreen && setupScreen.style.display !== 'none') {
+      if (setupScreenEl && setupScreenEl.style.display !== 'none') {
         // 確保自己的軍隊已同步（以防萬一）
         syncArmyToFirebase(2);
 
@@ -5019,6 +5030,32 @@ function updateRosterDisplay(player) {
       <button class="remove-btn" onclick="removeFromRoster(${player}, ${i})">×</button>
     </div>
   `).join("");
+}
+
+// 顯示對手的軍隊（線上模式，設定階段）
+function displayOpponentArmy(player, armyData) {
+  if (!armyData || !armyData.roster) return;
+
+  const container = document.getElementById(`p${player}Roster`);
+  const pointsDisplay = document.getElementById(`p${player}Points`);
+  if (!container || !pointsDisplay) return;
+
+  const roster = armyData.roster;
+  const totalPoints = roster.reduce((sum, u) => sum + (u.points || 0), 0);
+  pointsDisplay.textContent = totalPoints;
+
+  // 顯示對手軍隊（不可編輯）
+  container.innerHTML = roster.map((unit) => `
+    <div class="roster-item" style="opacity: 0.8;">
+      <span>👤 ${unit.name} (${unit.points}點)</span>
+    </div>
+  `).join("");
+
+  // 更新陣營顯示
+  const factionSelect = document.getElementById(`p${player}Faction`);
+  if (factionSelect && armyData.faction) {
+    factionSelect.value = armyData.faction;
+  }
 }
 
 function checkStartButton() {
