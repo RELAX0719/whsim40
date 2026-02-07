@@ -580,7 +580,7 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
   <div class="setup-header">
     <h1>⚔️ 戰鎚 40,000 ⚔️</h1>
     <p>第十版核心規則 - 軍表配置</p>
-    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.4.3 (2026-02-07)</p>
+    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.4.4 (2026-02-07)</p>
   </div>
 
   <!-- 連線對戰選項 -->
@@ -1702,22 +1702,55 @@ function handleRemoteVisualEffect(effectData) {
   }
 }
 
-// ========== 常數 ==========
-// INCH = 像素/英吋，控制整體場景大小
-// 10 = 小場景（適合小螢幕）, 15 = 中等, 20 = 大場景
-const INCH = 15;
-const GRID_SIZE = 25;  // 網格吸附大小（像素），用於單位定位
+// ========== 常數與尺寸系統 ==========
+// 以網格為基準的統一尺寸系統
+const BASE_GRID_SIZE = 20;  // 基礎網格大小（像素）
+const BASE_INCH = BASE_GRID_SIZE * 0.75;  // 基礎1英吋 = 15像素
+const INCH = BASE_INCH;  // 保持向後兼容
 let maxPoints = 1000; // 可調整的點數上限
 
-// 將座標吸附到網格（根據畫布縮放調整網格大小）
-function snapToGrid(x, y) {
+// 取得實際網格大小（根據畫布縮放）
+function getGridSize() {
   const canvasScale = gameState.canvasScale || 1;
-  const scaledGridSize = GRID_SIZE * canvasScale;
+  return BASE_GRID_SIZE * canvasScale;
+}
+
+// 取得縮放後的英吋值（用於距離計算）
+function getScaledInch() {
+  const canvasScale = gameState.canvasScale || 1;
+  return BASE_INCH * canvasScale;
+}
+
+// 將英吋轉換為像素（考慮縮放）
+function inchToPixels(inches) {
+  return inches * getScaledInch();
+}
+
+// 將像素轉換為英吋（考慮縮放）
+function pixelsToInch(pixels) {
+  return pixels / getScaledInch();
+}
+
+// 將座標吸附到網格
+function snapToGrid(x, y) {
+  const gridSize = getGridSize();
   return {
-    x: Math.round(x / scaledGridSize) * scaledGridSize,
-    y: Math.round(y / scaledGridSize) * scaledGridSize
+    x: Math.round(x / gridSize) * gridSize,
+    y: Math.round(y / gridSize) * gridSize
   };
 }
+
+// 單位大小（以網格為單位）- 比例對應官方底板尺寸
+// 25mm=1x, 32mm=1.2x, 40mm=1.6x, 50mm=2x, 80mm=3x, 100mm=4x, 130mm=5x
+const UNIT_SIZE_IN_GRIDS = {
+  infantry: 0.75,      // 25mm 標準步兵 (1x)
+  default: 0.9,        // 32mm 預設 (1.2x)
+  elite: 1.2,          // 40mm 菁英/角色 (1.6x)
+  small_monster: 1.5,  // 50mm 小型怪獸 (2x)
+  vehicle: 2.25,       // 60-80mm 載具/中型怪獸 (3x)
+  large_monster: 3.0,  // 100mm 大型怪獸 (4x)
+  titanic: 3.75        // 130mm+ 泰坦級 (5x)
+};
 
 // ========== 音效系統 ==========
 let audioContext = null;
@@ -3002,7 +3035,7 @@ function loadUnitImage(unit) {
 // 根據 WH40K 官方底板尺寸規範
 // 底板尺寸換算: 25mm ≈ 1", 32mm ≈ 1.25", 40mm ≈ 1.6", 50mm ≈ 2",
 //              60mm ≈ 2.4", 80mm ≈ 3.15", 100mm ≈ 4", 130mm ≈ 5"
-// 回傳值為半徑(像素)，需乘以 INCH/10 來對應實際比例
+// 回傳值為半徑(像素)，以網格為基準單位，比例對應官方底板
 function getUnitBaseSize(unit) {
   // 如果單位有自定義底板大小，使用它
   if (unit.baseSize) return unit.baseSize;
@@ -3010,29 +3043,28 @@ function getUnitBaseSize(unit) {
   const keywords = unit.keywords || [];
   const name = unit.name || "";
   const stats = unit.stats || {};
-  // 單位大小隨戰場縮放，確保在不同裝置上相對比例一致
-  const canvasScale = gameState.canvasScale || 1;
-  const scale = (INCH / 10) * canvasScale;
+  const gridSize = getGridSize();
 
-  // 泰坦級 (130mm+ / 5"+) - 最大
+  // 根據關鍵字判斷單位大小（以網格為單位）
+  let sizeInGrids = UNIT_SIZE_IN_GRIDS.default;  // 預設 32mm
+
+  // 泰坦級 130mm+ (5x)
   if (keywords.includes("Titanic") || name.includes("金字塔") || name.includes("Monolith") ||
       name.includes("沉默之王") || name.includes("Silent King") ||
       name.includes("Hierophant") || name.includes("祭司獸")) {
-    return Math.round(25 * scale); // 5" 直徑 = 2.5" 半徑
+    sizeInGrids = UNIT_SIZE_IN_GRIDS.titanic;
   }
-
-  // 大型怪獸/載具 (100mm / 4") - C'tan、大型怪獸
-  if (keywords.includes("C'tan") ||
+  // 大型怪獸 100mm (4x) - C'tan、大型怪獸
+  else if (keywords.includes("C'tan") ||
       (keywords.includes("Monster") && stats.W >= 14) ||
       name.includes("星神") || name.includes("Norn") || name.includes("古老") ||
       name.includes("暴君獸") || name.includes("Tyrannofex") ||
       name.includes("穿地獸") || name.includes("Trygon") ||
       name.includes("巨口獸") || name.includes("Mawloc")) {
-    return Math.round(20 * scale); // 4" 直徑 = 2" 半徑
+    sizeInGrids = UNIT_SIZE_IN_GRIDS.large_monster;
   }
-
-  // 中型怪獸/載具 (60-80mm / 2.4"-3.15")
-  if ((keywords.includes("Monster") && stats.W >= 8) ||
+  // 中型怪獸/載具 60-80mm (3x)
+  else if ((keywords.includes("Monster") && stats.W >= 8) ||
       keywords.includes("Vehicle") ||
       name.includes("屠殺獸") || name.includes("Carnifex") ||
       name.includes("噴射獸") || name.includes("Exocrine") ||
@@ -3044,44 +3076,37 @@ function getUnitBaseSize(unit) {
       name.includes("蟲巢暴君") || name.includes("Hive Tyrant") ||
       name.includes("蟲群霸主") || name.includes("Swarmlord") ||
       name.includes("繁殖獸") || name.includes("Tervigon")) {
-    return Math.round(15 * scale); // 3" 直徑 = 1.5" 半徑
+    sizeInGrids = UNIT_SIZE_IN_GRIDS.vehicle;
   }
-
-  // 中型步兵/小型怪獸 (50mm / 2")
-  if ((keywords.includes("Monster") && stats.W >= 5) ||
+  // 小型怪獸 50mm (2x)
+  else if ((keywords.includes("Monster") && stats.W >= 5) ||
       name.includes("毀滅者") || name.includes("Destroyer") ||
       name.includes("幽靈") || name.includes("Wraith") ||
       name.includes("靈能獸") || name.includes("Zoanthrope") ||
       name.includes("伏擊者") || name.includes("Lictor") ||
-      name.includes("育母蟲") || name.includes("Broodlord") ||
+      name.includes("育母蟲") || name.includes("Broodlord")) {
+    sizeInGrids = UNIT_SIZE_IN_GRIDS.small_monster;
+  }
+  // 菁英/角色 40mm (1.6x)
+  else if (keywords.includes("Character") ||
       name.includes("霸主") || name.includes("Overlord") ||
-      name.includes("領主") || name.includes("Lord")) {
-    return Math.round(10 * scale); // 2" 直徑 = 1" 半徑
-  }
-
-  // 角色/精英 (40mm / 1.6")
-  if (keywords.includes("Character") ||
+      name.includes("領主") || name.includes("Lord") ||
       name.includes("術士") || name.includes("mancer") ||
-      name.includes("連長") || name.includes("Captain") ||
       name.includes("暗衛") || name.includes("Lychguard") ||
-      name.includes("戰士×3") || name.includes("Warriors×3") ||
       name.includes("蟲族戰士") || name.includes("Tyranid Warriors")) {
-    return Math.round(8 * scale); // 1.6" 直徑 = 0.8" 半徑
+    sizeInGrids = UNIT_SIZE_IN_GRIDS.elite;
   }
-
-  // 基礎步兵 (25-32mm / 1"-1.25")
-  if (name.includes("×10") || name.includes("×5") ||
+  // 基礎步兵 25mm (1x)
+  else if (name.includes("×10") || name.includes("×5") ||
       name.includes("白蟻") || name.includes("Termagant") ||
       name.includes("刺蟲") || name.includes("Hormagaunt") ||
       name.includes("翼蟲") || name.includes("Gargoyle") ||
-      name.includes("戰士×10") || name.includes("Warriors×10") ||
-      name.includes("不朽者") || name.includes("Immortal") ||
       name.includes("甲蟲") || name.includes("Scarab")) {
-    return Math.round(5 * scale); // 1" 直徑 = 0.5" 半徑
+    sizeInGrids = UNIT_SIZE_IN_GRIDS.infantry;
   }
 
-  // 預設大小 (32mm / 1.25")
-  return Math.round(6 * scale); // 1.25" 直徑 = 0.625" 半徑
+  // 返回半徑（網格數 * 網格大小 / 2）
+  return Math.round(sizeInGrids * gridSize / 2);
 }
 
 // ========== 智能部署系統 ==========
@@ -4037,7 +4062,7 @@ async function aiMovementPhase() {
     await delay(200);
     const target = aiSelectMoveTarget(unit);
     if (target) {
-      const maxDist = unit.stats.M * INCH;
+      const maxDist = inchToPixels(unit.stats.M);
       const dx = target.x - unit.x;
       const dy = target.y - unit.y;
       const dist = Math.hypot(dx, dy);
@@ -4152,7 +4177,7 @@ function evaluateGameState(aiPlayer) {
 function getObjectiveValue(obj, unit, gameEval, aiPlayer) {
   let value = 100; // 基礎價值
 
-  const dist = Math.hypot(unit.x - obj.x, unit.y - obj.y) / INCH;
+  const dist = pixelsToInch(Math.hypot(unit.x - obj.x, unit.y - obj.y));
   const canReach = dist <= unit.stats.M + 3; // 3" 是目標範圍
 
   // 距離懲罰
@@ -4204,7 +4229,7 @@ function aiSelectMoveTarget(unit) {
 
   if (aiDifficulty === "easy") {
     // 簡單：隨機移動
-    return { x: unit.x + (Math.random() - 0.5) * unit.stats.M * INCH, y: unit.y + (Math.random() - 0.5) * unit.stats.M * INCH };
+    return { x: unit.x + (Math.random() - 0.5) * inchToPixels(unit.stats.M), y: unit.y + (Math.random() - 0.5) * inchToPixels(unit.stats.M) };
   }
 
   // ===== 策略性AI（普通/困難）=====
@@ -4228,11 +4253,11 @@ function aiSelectMoveTarget(unit) {
   // 檢查目標附近的敵軍OC
   objectiveScores.forEach(os => {
     const enemyOCNearby = enemies
-      .filter(e => Math.hypot(e.x - os.obj.x, e.y - os.obj.y) / INCH <= 3)
+      .filter(e => pixelsToInch(Math.hypot(e.x - os.obj.x, e.y - os.obj.y)) <= 3)
       .reduce((sum, e) => sum + e.stats.OC, 0);
 
     const myOCNearby = myUnits
-      .filter(u => u.id !== unit.id && Math.hypot(u.x - os.obj.x, u.y - os.obj.y) / INCH <= 3)
+      .filter(u => u.id !== unit.id && pixelsToInch(Math.hypot(u.x - os.obj.x, u.y - os.obj.y)) <= 3)
       .reduce((sum, u) => sum + u.stats.OC, 0);
 
     // 需要更多OC來爭奪的目標
@@ -4268,7 +4293,7 @@ function aiSelectMoveTarget(unit) {
   if (!targetPosition && isMeleeOnly) {
     // 優先攻擊在目標附近的敵人（清除佔點威脅）
     const enemiesNearObjectives = enemies.filter(e =>
-      objectives.some(o => Math.hypot(e.x - o.x, e.y - o.y) / INCH <= 4)
+      objectives.some(o => pixelsToInch(Math.hypot(e.x - o.x, e.y - o.y)) <= 4)
     );
 
     if (enemiesNearObjectives.length > 0) {
@@ -4287,7 +4312,7 @@ function aiSelectMoveTarget(unit) {
   if (!targetPosition && isRanged) {
     const weapon = unit.weapons.ranged;
     const inRangeEnemies = enemies.filter(e => {
-      const dist = Math.hypot(e.x - unit.x, e.y - unit.y) / INCH;
+      const dist = pixelsToInch(Math.hypot(e.x - unit.x, e.y - unit.y));
       return dist <= weapon.range;
     });
 
@@ -4299,7 +4324,7 @@ function aiSelectMoveTarget(unit) {
           const coverSpot = findNearestCover(unit);
           if (coverSpot) {
             const coverDist = Math.hypot(coverSpot.x - unit.x, coverSpot.y - unit.y);
-            if (coverDist <= unit.stats.M * INCH) {
+            if (coverDist <= inchToPixels(unit.stats.M)) {
               targetPosition = coverSpot;
               log(`🛡️ ${unit.name} 策略：移動到掩護位置`, "info");
             }
@@ -4395,7 +4420,7 @@ async function aiShootingPhase() {
           continue;
         }
       }
-      const distance = Math.hypot(unit.x - target.x, unit.y - target.y) / INCH;
+      const distance = pixelsToInch(Math.hypot(unit.x - target.x, unit.y - target.y));
 
       if (distance <= weapon.range) {
         gameState.selectedUnit = unit;
@@ -4442,7 +4467,7 @@ function aiSelectShootTarget(unit) {
 
   const weapon = unit.weapons.ranged;
   const inRange = enemies.filter(e => {
-    const dist = Math.hypot(e.x - unit.x, e.y - unit.y) / INCH;
+    const dist = pixelsToInch(Math.hypot(e.x - unit.x, e.y - unit.y));
     return dist <= weapon.range;
   });
 
@@ -4471,7 +4496,7 @@ function aiSelectShootTarget(unit) {
 
     // 3. 目標附近的敵人（戰略價值高）- 根據戰略加權
     const objNear = objectives.find(o =>
-      Math.hypot(enemy.x - o.x, enemy.y - o.y) / INCH <= 3
+      pixelsToInch(Math.hypot(enemy.x - o.x, enemy.y - o.y)) <= 3
     );
     if (objNear) {
       let objBonus = 35;
@@ -4548,7 +4573,7 @@ async function aiChargePhase() {
   for (const unit of myUnits) {
     const enemies = gameState.units.filter(u => u.player === enemyPlayer && u.alive);
     const nearbyEnemies = enemies.filter(e => {
-      const dist = Math.hypot(e.x - unit.x, e.y - unit.y) / INCH;
+      const dist = pixelsToInch(Math.hypot(e.x - unit.x, e.y - unit.y));
       return dist <= 12 && dist > 1.5;
     });
 
@@ -4561,7 +4586,7 @@ async function aiChargePhase() {
       let roll1 = rollD6();
       let roll2 = rollD6();
       let chargeRoll = roll1 + roll2;
-      const dist = Math.hypot(target.x - unit.x, target.y - unit.y) / INCH;
+      const dist = pixelsToInch(Math.hypot(target.x - unit.x, target.y - unit.y));
 
       // 如果衝鋒失敗且有戰略可重擲，考慮使用
       if (chargeRoll < dist && !chargeStratagem && gameState.cp[aiPlayer] >= 1) {
@@ -4584,8 +4609,8 @@ async function aiChargePhase() {
       if (chargeRoll >= dist) {
         // 移動到目標旁邊
         const angle = Math.atan2(target.y - unit.y, target.x - unit.x);
-        let newX = target.x - Math.cos(angle) * INCH * 1.2;
-        let newY = target.y - Math.sin(angle) * INCH * 1.2;
+        let newX = target.x - Math.cos(angle) * inchToPixels(1.2);
+        let newY = target.y - Math.sin(angle) * inchToPixels(1.2);
 
         // 檢查是否與友軍重疊，如果是則嘗試找其他位置
         const baseSize = getUnitBaseSize(unit);
@@ -4594,8 +4619,8 @@ async function aiChargePhase() {
           // 嘗試圍繞目標找到不重疊的位置
           for (let angleOffset = Math.PI / 4; angleOffset <= Math.PI * 2; angleOffset += Math.PI / 4) {
             const testAngle = angle + angleOffset;
-            const testX = target.x - Math.cos(testAngle) * INCH * 1.5;
-            const testY = target.y - Math.sin(testAngle) * INCH * 1.5;
+            const testX = target.x - Math.cos(testAngle) * inchToPixels(1.5);
+            const testY = target.y - Math.sin(testAngle) * inchToPixels(1.5);
             if (isPositionValid(testX, testY, baseSize, friendlyUnits)) {
               newX = testX;
               newY = testY;
@@ -4640,7 +4665,7 @@ function shouldCharge(unit, enemies) {
 
       // 如果敵人在目標點附近，衝鋒清除
       const nearObjective = gameState.objectives.some(o =>
-        Math.hypot(nearestEnemy.x - o.x, nearestEnemy.y - o.y) / INCH <= 3
+        pixelsToInch(Math.hypot(nearestEnemy.x - o.x, nearestEnemy.y - o.y)) <= 3
       );
       if (nearObjective) return true;
     }
@@ -4661,7 +4686,7 @@ function aiSelectChargeTarget(unit, enemies) {
   const objectives = gameState.objectives;
   const scored = enemies.map(enemy => {
     let score = 0;
-    const dist = Math.hypot(unit.x - enemy.x, unit.y - enemy.y) / INCH;
+    const dist = pixelsToInch(Math.hypot(unit.x - enemy.x, unit.y - enemy.y));
 
     // 距離近的優先（更容易成功）
     score += (12 - dist) * 5;
@@ -4672,7 +4697,7 @@ function aiSelectChargeTarget(unit, enemies) {
 
     // 目標點附近的敵人優先
     const nearObjective = objectives.some(o =>
-      Math.hypot(enemy.x - o.x, enemy.y - o.y) / INCH <= 3
+      pixelsToInch(Math.hypot(enemy.x - o.x, enemy.y - o.y)) <= 3
     );
     if (nearObjective) score += 40;
 
@@ -4712,7 +4737,7 @@ async function aiFightPhase() {
   for (const unit of myUnits) {
     const enemies = gameState.units.filter(u => u.player === enemyPlayer && u.alive);
     const meleeRange = enemies.filter(e => {
-      const dist = Math.hypot(e.x - unit.x, e.y - unit.y) / INCH;
+      const dist = pixelsToInch(Math.hypot(e.x - unit.x, e.y - unit.y));
       return dist <= 1.5;
     });
 
@@ -4776,7 +4801,7 @@ function aiSelectMeleeTarget(unit, enemies) {
 
     // 目標點附近的敵人優先
     const nearObjective = objectives.some(o =>
-      Math.hypot(enemy.x - o.x, enemy.y - o.y) / INCH <= 3
+      pixelsToInch(Math.hypot(enemy.x - o.x, enemy.y - o.y)) <= 3
     );
     if (nearObjective) {
       score += 35;
@@ -5004,7 +5029,7 @@ function getDetachmentBonus(player, attacker, target, context) {
 
 // 檢查是否靠近目標標記
 function isNearObjective(unit) {
-  const OBJ_RANGE = 3 * INCH;
+  const OBJ_RANGE = inchToPixels(3);
   for (const obj of gameState.objectives) {
     const dist = Math.hypot(unit.x - obj.x, unit.y - obj.y);
     if (dist <= OBJ_RANGE) return true;
@@ -5014,7 +5039,7 @@ function isNearObjective(unit) {
 
 // 檢查目標是否靠近己方怪獸（用於 Pantheon of Woe）
 function isNearAllyMonster(target, attackerPlayer) {
-  const AURA_RANGE = 6 * INCH;
+  const AURA_RANGE = inchToPixels(6);
   const allyMonsters = gameState.units.filter(u =>
     u.player === attackerPlayer &&
     u.alive &&
@@ -5612,7 +5637,7 @@ function autoDeployIfNeeded() {
 
   const w = gameState.canvasWidth || 600;
   const h = gameState.canvasHeight || 440;
-  const deployZoneWidth = gameState.deployZone || 12 * INCH;
+  const deployZoneWidth = gameState.deployZone || inchToPixels(12);
 
   // 確保部署區域有效
   if (w <= 0 || h <= 0 || deployZoneWidth <= 0) {
@@ -5648,7 +5673,7 @@ function autoDeployIfNeeded() {
 
 function handleDeployClick(canvasX, canvasY) {
   const w = gameState.canvasWidth || canvas.getBoundingClientRect().width;
-  const deployZoneWidth = gameState.deployZone || 12 * INCH;
+  const deployZoneWidth = gameState.deployZone || inchToPixels(12);
 
   // 線上模式：每個玩家只能部署自己的單位
   // 本地模式：根據當前部署玩家
@@ -5730,7 +5755,7 @@ function finishDeploymentAndStart() {
   // 確保所有單位都已部署（自動部署剩餘單位）
   const w = gameState.canvasWidth || 600;
   const h = gameState.canvasHeight || 440;
-  const deployZoneWidth = gameState.deployZone || 12 * INCH;
+  const deployZoneWidth = gameState.deployZone || inchToPixels(12);
 
   // 分別處理兩邊未部署的單位
   const undeployedP1 = gameState.units.filter(u => u.player === 1 && !u.deployed);
@@ -6457,7 +6482,7 @@ async function handleCanvasClick(x, y) {
   // 移動動作
   if (gameState.currentAction === "move" && gameState.selectedUnit) {
     const unit = gameState.selectedUnit;
-    const maxDist = unit.stats.M * INCH;
+    const maxDist = inchToPixels(unit.stats.M);
 
     // 吸附到網格
     const snapped = snapToGrid(x, y);
@@ -6497,7 +6522,7 @@ async function handleCanvasClick(x, y) {
     const roll2 = rollD6();
     const chargeRoll = roll1 + roll2;
     const dist = Math.hypot(x - gameState.selectedUnit.x, y - gameState.selectedUnit.y);
-    const distInches = dist / INCH;
+    const distInches = pixelsToInch(dist);
 
     // 衝鋒骰子動畫
     if (enableDiceAnimation) {
@@ -6872,7 +6897,7 @@ async function executeAction() {
       return;
     }
 
-    const distance = Math.hypot(attacker.x - target.x, attacker.y - target.y) / INCH;
+    const distance = pixelsToInch(Math.hypot(attacker.x - target.x, attacker.y - target.y));
 
     // 過濾出在射程內且未使用的武器
     const availableWeapons = rangedWeapons.filter(w => {
@@ -6927,7 +6952,7 @@ async function executeAction() {
       return;
     }
 
-    const distance = Math.hypot(attacker.x - target.x, attacker.y - target.y) / INCH;
+    const distance = pixelsToInch(Math.hypot(attacker.x - target.x, attacker.y - target.y));
     if (distance > 1.5) {
       log(`目標超出近戰範圍！`, "miss");
       clearAction();
@@ -7849,7 +7874,7 @@ async function startCommandPhase() {
 }
 
 function computeObjectiveControl() {
-  const OBJ_RANGE = 3 * INCH;
+  const OBJ_RANGE = inchToPixels(3);
   let changes = [];
 
   for (const obj of gameState.objectives) {
@@ -8298,17 +8323,16 @@ function render() {
     viewOffsetY * devicePixelRatio
   );
 
-  // 繪製網格（根據畫布縮放調整網格大小）
-  const canvasScale = gameState.canvasScale || 1;
-  const scaledGridSize = GRID_SIZE * canvasScale;
+  // 繪製網格（使用統一的網格大小函數）
+  const gridSize = getGridSize();
   ctx.strokeStyle = "rgba(255,255,255,0.1)";
   ctx.lineWidth = 1;
   ctx.beginPath();
-  for (let x = 0; x < w; x += scaledGridSize) {
+  for (let x = 0; x < w; x += gridSize) {
     ctx.moveTo(x, 0);
     ctx.lineTo(x, h);
   }
-  for (let y = 0; y < h; y += scaledGridSize) {
+  for (let y = 0; y < h; y += gridSize) {
     ctx.moveTo(0, y);
     ctx.lineTo(w, y);
   }
@@ -8316,10 +8340,10 @@ function render() {
 
   // 繪製網格交叉點（更清晰的定位參考）
   ctx.fillStyle = "rgba(255,255,255,0.15)";
-  for (let x = 0; x <= w; x += scaledGridSize) {
-    for (let y = 0; y <= h; y += scaledGridSize) {
+  for (let x = 0; x <= w; x += gridSize) {
+    for (let y = 0; y <= h; y += gridSize) {
       ctx.beginPath();
-      ctx.arc(x, y, 2 * canvasScale, 0, Math.PI * 2);
+      ctx.arc(x, y, Math.max(2, gridSize * 0.1), 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -8327,7 +8351,7 @@ function render() {
   // 繪製部署區（部署階段時顯示）
   if (gameState.phase === "deployment") {
     // deployZone 已經包含縮放，直接使用
-    const deployZoneWidth = gameState.deployZone || 12 * INCH;
+    const deployZoneWidth = gameState.deployZone || inchToPixels(12);
 
     // 玩家一部署區（左側）
     ctx.fillStyle = gameState.deploy.deployingPlayer === 1 ? "rgba(70, 130, 180, 0.3)" : "rgba(70, 130, 180, 0.1)";
@@ -8370,7 +8394,7 @@ function render() {
   }
 
   // 繪製目標點
-  const OBJ_RANGE = 3 * INCH;
+  const OBJ_RANGE = inchToPixels(3);
   for (const obj of gameState.objectives) {
     // 控制範圍
     ctx.beginPath();
@@ -8405,22 +8429,22 @@ function render() {
 
     // 移動範圍（移動階段或移動動作）
     if ((phase === "movement" || action === "move") && !unit.hasMoved) {
-      ranges.push({ range: unit.stats.M * INCH, color: "rgba(34,197,94,0.3)", label: "移動" });
+      ranges.push({ range: inchToPixels(unit.stats.M), color: "rgba(34,197,94,0.3)", label: "移動" });
     }
 
     // 射擊範圍（射擊階段或射擊動作）
     if ((phase === "shooting" || action === "shoot") && unit.weapons.ranged && !unit.hasShot) {
-      ranges.push({ range: unit.weapons.ranged.range * INCH, color: "rgba(251,191,36,0.2)", label: "射擊" });
+      ranges.push({ range: inchToPixels(unit.weapons.ranged.range), color: "rgba(251,191,36,0.2)", label: "射擊" });
     }
 
     // 衝鋒範圍（衝鋒階段或衝鋒動作）
     if ((phase === "charge" || action === "charge") && !unit.hasCharged && !unit.battleShocked) {
-      ranges.push({ range: 12 * INCH, color: "rgba(220,38,38,0.2)", label: "衝鋒" });
+      ranges.push({ range: inchToPixels(12), color: "rgba(220,38,38,0.2)", label: "衝鋒" });
     }
 
     // 近戰範圍（近戰階段）
     if ((phase === "fight" || action === "fight") && unit.weapons.melee && !unit.hasFought) {
-      ranges.push({ range: 1.5 * INCH, color: "rgba(168,85,247,0.3)", label: "近戰" });
+      ranges.push({ range: inchToPixels(1.5), color: "rgba(168,85,247,0.3)", label: "近戰" });
     }
 
     // 繪製所有範圍
