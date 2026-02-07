@@ -955,6 +955,8 @@ let isHost = false;  // 房主 = 玩家1
 let onlinePlayerId = null;  // 1 或 2
 let roomRef = null;
 let gameStateRef = null;
+let lastDiceTimestamp = 0;  // 骰子同步時間戳
+let lastLogTimestamp = 0;   // 紀錄同步時間戳
 
 // 產生隨機房間碼
 function generateRoomCode() {
@@ -1136,23 +1138,67 @@ function listenToRoom() {
     if (data.gameStarted && !isHost) {
       const setupScreen = document.getElementById('setupScreen');
       if (setupScreen && setupScreen.style.display !== 'none') {
-        // 自動開始遊戲
-        document.getElementById("setupScreen").style.display = "none";
-        document.getElementById("gameScreen").classList.add("active");
-        resizeCanvas();
-        initBattlefield();
-        gameState.phase = "deployment";
-        gameState.round = 1;
-        gameState.currentPlayer = 1;
-        log('=== 房主已開始遊戲 ===', 'phase');
-        updatePhaseDisplay();
-        render();
+        // 玩家2上傳自己的軍隊
+        roomRef.child('armies/2').set({
+          roster: armyRosters[2].map(u => ({
+            id: u.id,
+            name: u.name,
+            points: u.points,
+            stats: u.stats,
+            weapons: u.weapons,
+            abilities: u.abilities,
+            keywords: u.keywords,
+            inv: u.inv,
+            img: u.img
+          })),
+          faction: document.getElementById('p2Faction').value,
+          detachment: document.getElementById('p2Detachment').value
+        });
+
+        // 載入房主的軍隊
+        roomRef.child('armies/1').once('value').then((snapshot) => {
+          if (snapshot.exists()) {
+            const hostArmy = snapshot.val();
+            loadEnemyArmy(hostArmy, 1);
+          }
+
+          // 開始遊戲
+          document.getElementById("setupScreen").style.display = "none";
+          document.getElementById("gameScreen").classList.add("active");
+          resizeCanvas();
+          initBattlefield();
+          gameState.phase = "deployment";
+          gameState.round = 1;
+          gameState.currentPlayer = 1;
+          log('=== 房主已開始遊戲 ===', 'phase');
+          updatePhaseDisplay();
+          render();
+        });
       }
     }
 
-    // 同步遊戲狀態
+    // 同步骰子動畫
+    if (data.diceRoll && data.diceRoll.timestamp !== lastDiceTimestamp) {
+      lastDiceTimestamp = data.diceRoll.timestamp;
+      showRemoteDice(data.diceRoll);
+    }
+
+    // 同步戰鬥紀錄
+    if (data.combatLog && data.combatLog.timestamp !== lastLogTimestamp) {
+      lastLogTimestamp = data.combatLog.timestamp;
+      log(data.combatLog.message, data.combatLog.type, false);  // false 防止重複同步
+    }
+
+    // 同步視覺效果
+    if (data.visualEffect && data.visualEffect.timestamp !== lastEffectTimestamp) {
+      lastEffectTimestamp = data.visualEffect.timestamp;
+      handleRemoteVisualEffect(data.visualEffect);
+    }
+
+    // 同步遊戲狀態（雙方都需要接收對方的更新）
     if (data.status === 'playing' && data.gameState) {
-      if (!isHost) {
+      // 只在對方回合結束後同步，或當前不是自己的回合時同步
+      if (data.gameState.currentPlayer === onlinePlayerId || !isMyTurn()) {
         syncGameStateFromFirebase(data.gameState);
       }
     }
@@ -1199,16 +1245,22 @@ function syncGameStateToFirebase() {
       x: u.x,
       y: u.y,
       currentHP: u.currentHP,
+      maxHP: u.maxHP,
       alive: u.alive,
       deployed: u.deployed,
       hasMoved: u.hasMoved,
       hasShot: u.hasShot,
       hasCharged: u.hasCharged,
-      hasFought: u.hasFought
+      hasFought: u.hasFought,
+      battleShocked: u.battleShocked || false,
+      inCover: u.inCover || false,
+      usedOneUseWeapons: u.usedOneUseWeapons || [],
+      activeStratagemEffects: u.activeStratagemEffects || []
     })),
     vp: gameState.vp,
     cp: gameState.cp,
-    objectives: gameState.objectives
+    objectives: gameState.objectives,
+    timestamp: Date.now()
   };
 
   roomRef.child('gameState').set(stateToSync);
@@ -1232,12 +1284,17 @@ function syncGameStateFromFirebase(remoteState) {
         localUnit.x = remoteUnit.x;
         localUnit.y = remoteUnit.y;
         localUnit.currentHP = remoteUnit.currentHP;
+        if (remoteUnit.maxHP) localUnit.maxHP = remoteUnit.maxHP;
         localUnit.alive = remoteUnit.alive;
         localUnit.deployed = remoteUnit.deployed;
         localUnit.hasMoved = remoteUnit.hasMoved;
         localUnit.hasShot = remoteUnit.hasShot;
         localUnit.hasCharged = remoteUnit.hasCharged;
         localUnit.hasFought = remoteUnit.hasFought;
+        localUnit.battleShocked = remoteUnit.battleShocked || false;
+        localUnit.inCover = remoteUnit.inCover || false;
+        if (remoteUnit.usedOneUseWeapons) localUnit.usedOneUseWeapons = remoteUnit.usedOneUseWeapons;
+        if (remoteUnit.activeStratagemEffects) localUnit.activeStratagemEffects = remoteUnit.activeStratagemEffects;
       }
     });
   }
@@ -1255,7 +1312,7 @@ function syncGameStateFromFirebase(remoteState) {
 
   // 提示是否為自己的回合
   if (isMyTurn()) {
-    log(`輪到你的回合！`, 'phase');
+    log(`輪到你的回合！`, 'phase', false);  // 本地提示不同步
   }
 
   render();
@@ -1311,6 +1368,80 @@ function handleRemoteAction(action) {
 function isMyTurn() {
   if (!isOnlineMode) return true;
   return gameState.currentPlayer === onlinePlayerId;
+}
+
+// 同步骰子結果到 Firebase
+function syncDiceRoll(title, results, successCount, failCount) {
+  if (!isOnlineMode || !roomRef) return;
+  roomRef.child('diceRoll').set({
+    title: title,
+    results: results,
+    successCount: successCount,
+    failCount: failCount,
+    timestamp: Date.now()
+  });
+}
+
+// 顯示遠端骰子動畫
+function showRemoteDice(diceData) {
+  if (!diceData) return;
+  const overlay = document.getElementById('diceOverlay');
+  const container = document.getElementById('diceContainer');
+  const titleEl = document.getElementById('diceTitle');
+  const resultEl = document.getElementById('diceResult');
+
+  if (!overlay || !container) return;
+
+  titleEl.textContent = diceData.title || '骰子結果';
+  container.innerHTML = '';
+
+  if (diceData.results && Array.isArray(diceData.results)) {
+    diceData.results.forEach(r => {
+      const dice = document.createElement('div');
+      dice.className = 'dice ' + (r.success ? 'success' : 'fail');
+      if (r.value === 6) dice.classList.add('critical');
+      dice.textContent = r.value;
+      container.appendChild(dice);
+    });
+  }
+
+  resultEl.innerHTML = `<span class="success-count">${diceData.successCount || 0} 成功</span> / <span class="fail-count">${diceData.failCount || 0} 失敗</span>`;
+
+  overlay.classList.add('active');
+  setTimeout(() => overlay.classList.remove('active'), 1500);
+}
+
+// 同步戰鬥紀錄到 Firebase
+function syncCombatLog(message, type) {
+  if (!isOnlineMode || !roomRef) return;
+  roomRef.child('combatLog').set({
+    message: message,
+    type: type,
+    timestamp: Date.now()
+  });
+}
+
+// 同步視覺效果到 Firebase
+let lastEffectTimestamp = 0;
+function syncVisualEffect(effectData) {
+  if (!isOnlineMode || !roomRef) return;
+  roomRef.child('visualEffect').set({
+    ...effectData,
+    timestamp: Date.now()
+  });
+}
+
+// 處理遠端視覺效果
+function handleRemoteVisualEffect(effectData) {
+  if (!effectData) return;
+  switch (effectData.type) {
+    case 'floatingText':
+      showFloatingText(effectData.x, effectData.y, effectData.text, effectData.options || {}, false);
+      break;
+    case 'damageNumber':
+      showDamageNumber(effectData.x, effectData.y, effectData.damage, effectData.isCrit || false, false);
+      break;
+  }
 }
 
 // ========== 常數 ==========
@@ -2857,7 +2988,7 @@ function clearAllUIEffects() {
 }
 
 // 在單位頭上顯示浮動文字
-function showFloatingText(x, y, text, options = {}) {
+function showFloatingText(x, y, text, options = {}, sync = true) {
   const effect = {
     x: x,
     y: y - 40,
@@ -2873,10 +3004,15 @@ function showFloatingText(x, y, text, options = {}) {
     type: options.type || "skill"
   };
   visualEffects.floatingTexts.push(effect);
+
+  // 線上同步視覺效果
+  if (sync && isOnlineMode && roomRef && isMyTurn()) {
+    syncVisualEffect({ type: 'floatingText', x, y, text, options });
+  }
 }
 
 // 顯示傷害數字（特殊樣式）
-function showDamageNumber(x, y, damage, isCrit = false) {
+function showDamageNumber(x, y, damage, isCrit = false, sync = true) {
   const effect = {
     x: x + (Math.random() - 0.5) * 20,
     y: y - 30,
@@ -2893,6 +3029,11 @@ function showDamageNumber(x, y, damage, isCrit = false) {
     bounce: true
   };
   visualEffects.floatingTexts.push(effect);
+
+  // 線上同步傷害數字
+  if (sync && isOnlineMode && roomRef && isMyTurn()) {
+    syncVisualEffect({ type: 'damageNumber', x, y, damage, isCrit });
+  }
 }
 
 // 顯示攻擊線/射線
@@ -3114,6 +3255,15 @@ async function showDiceRoll(title, rolls, targetNumber, options = {}) {
   const failCount = rolls.length - successCount;
   resultEl.innerHTML = `需要 ${targetNumber}+ | <span class="success-count">${successCount} 成功</span>${critCount > 0 ? ` (${critCount}暴擊)` : ""} / <span class="fail-count">${failCount} 失敗</span>`;
 
+  // 線上模式同步骰子結果
+  if (isOnlineMode && roomRef && isMyTurn()) {
+    const diceResults = rolls.map((r, i) => ({
+      value: r,
+      success: r >= targetNumber
+    }));
+    syncDiceRoll(title, diceResults, successCount, failCount);
+  }
+
   // 等待後自動關閉
   await delay(options.duration || 800);
   overlay.classList.remove("active");
@@ -3158,6 +3308,14 @@ async function showChargeRoll(roll1, roll2, needed) {
   const success = total >= needed;
 
   resultEl.innerHTML = `${roll1} + ${roll2} = <b>${total}"</b> (需要 ${needed.toFixed(1)}") → <span class="${success ? 'success-count' : 'fail-count'}">${success ? '成功!' : '失敗'}</span>`;
+
+  // 線上模式同步衝鋒骰
+  if (isOnlineMode && roomRef && isMyTurn()) {
+    syncDiceRoll(`衝鋒擲骰 2D6 (需${needed.toFixed(1)}")`, [
+      { value: roll1, success: true },
+      { value: roll2, success: true }
+    ], success ? 1 : 0, success ? 0 : 1);
+  }
 
   await delay(1000);
   overlay.classList.remove("active");
@@ -4871,12 +5029,65 @@ function startBattle() {
     return;
   }
 
-  // 線上模式：通知對手遊戲開始
+  // 線上模式：同步軍隊並通知對手遊戲開始
   if (isOnlineMode && roomRef) {
+    // 上傳房主的軍隊資料
+    roomRef.child('armies/1').set({
+      roster: armyRosters[1].map(u => ({
+        id: u.id,
+        name: u.name,
+        points: u.points,
+        stats: u.stats,
+        weapons: u.weapons,
+        abilities: u.abilities,
+        keywords: u.keywords,
+        inv: u.inv,
+        img: u.img
+      })),
+      faction: document.getElementById('p1Faction').value,
+      detachment: document.getElementById('p1Detachment').value
+    });
+
     roomRef.child('status').set('playing');
     roomRef.child('gameStarted').set(true);
+
+    // 等待對手軍隊資料（最多等5秒）
+    let waitCount = 0;
+    const waitForArmy = setInterval(async () => {
+      const snapshot = await roomRef.child('armies/2').once('value');
+      if (snapshot.exists()) {
+        clearInterval(waitForArmy);
+        const enemyArmy = snapshot.val();
+        // 載入對手軍隊
+        loadEnemyArmy(enemyArmy, 2);
+        continueStartBattle();
+      } else {
+        waitCount++;
+        if (waitCount > 50) { // 5秒超時
+          clearInterval(waitForArmy);
+          alert('對手軍隊資料未收到，請重試');
+        }
+      }
+    }, 100);
+    return; // 等待後再繼續
   }
 
+  continueStartBattle();
+}
+
+function loadEnemyArmy(armyData, player) {
+  if (!armyData || !armyData.roster) return;
+
+  armyRosters[player] = armyData.roster;
+
+  // 設定對手的陣營
+  const factionSelect = document.getElementById(`p${player}Faction`);
+  if (factionSelect && armyData.faction) {
+    factionSelect.value = armyData.faction;
+  }
+}
+
+function continueStartBattle() {
   document.getElementById("setupScreen").style.display = "none";
   document.getElementById("gameScreen").classList.add("active");
 
@@ -7025,7 +7236,7 @@ function highlightSelectedUnit() {
   document.querySelectorAll(".unit-item").forEach(item => item.classList.remove("selected"));
 }
 
-function log(message, type = "") {
+function log(message, type = "", sync = true) {
   const logContent = document.getElementById("logContent");
   if (!logContent) return;
 
@@ -7041,6 +7252,11 @@ function log(message, type = "") {
   }
 
   logContent.scrollTop = logContent.scrollHeight;
+
+  // 線上模式同步紀錄到對手
+  if (sync && isOnlineMode && roomRef && isMyTurn()) {
+    syncCombatLog(message, type);
+  }
 }
 
 // 清空戰鬥日誌
