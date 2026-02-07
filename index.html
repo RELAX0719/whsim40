@@ -546,7 +546,7 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
   <div class="setup-header">
     <h1>⚔️ 戰鎚 40,000 ⚔️</h1>
     <p>第十版核心規則 - 軍表配置</p>
-    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.0.4 (2026-02-07)</p>
+    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.1.0 (2026-02-07)</p>
   </div>
 
   <!-- 連線對戰選項 -->
@@ -1202,10 +1202,8 @@ function listenToRoom() {
 
     // 同步遊戲狀態（雙方都需要接收對方的更新）
     if (data.status === 'playing' && data.gameState) {
-      // 只在對方回合結束後同步，或當前不是自己的回合時同步
-      if (data.gameState.currentPlayer === onlinePlayerId || !isMyTurn()) {
-        syncGameStateFromFirebase(data.gameState);
-      }
+      // 總是同步遊戲狀態，確保雙方一致
+      syncGameStateFromFirebase(data.gameState);
     }
 
     // 監聽遊戲動作
@@ -1265,6 +1263,7 @@ function syncGameStateToFirebase() {
     vp: gameState.vp,
     cp: gameState.cp,
     objectives: gameState.objectives,
+    deploy: gameState.deploy || { deployingPlayer: 1, p1Deployed: false, p2Deployed: false },
     timestamp: Date.now()
   };
 
@@ -1280,6 +1279,9 @@ function syncGameStateFromFirebase(remoteState) {
   gameState.currentPlayer = remoteState.currentPlayer;
   gameState.vp = remoteState.vp || { 1: 0, 2: 0 };
   gameState.cp = remoteState.cp || { 1: 0, 2: 0 };
+  if (remoteState.deploy) {
+    gameState.deploy = remoteState.deploy;
+  }
 
   // 同步單位狀態
   if (remoteState.units) {
@@ -5320,12 +5322,12 @@ function autoDeployIfNeeded() {
 }
 
 function handleDeployClick(canvasX, canvasY) {
-  const player = gameState.deploy.deployingPlayer;
+  // 線上模式：直接使用自己的玩家ID
+  const player = isOnlineMode ? onlinePlayerId : gameState.deploy.deployingPlayer;
 
-  // 線上模式：只能部署自己的單位
-  if (isOnlineMode && player !== onlinePlayerId) {
-    log(`等待玩家${player}部署...`, 'info');
-    return;
+  // 線上模式：每個玩家部署自己的單位
+  if (isOnlineMode) {
+    console.log('[deploy] 線上模式部署:', { player, onlinePlayerId });
   }
 
   const w = gameState.canvasWidth || canvas.getBoundingClientRect().width;
@@ -5377,6 +5379,16 @@ function handleDeployClick(canvasX, canvasY) {
     gameState.deploy.p1Deployed = true;
   } else {
     gameState.deploy.p2Deployed = true;
+  }
+
+  // 檢查是否所有己方單位都已部署
+  const myUndeployed = gameState.units.filter(u => u.player === player && !u.deployed);
+  if (myUndeployed.length === 0) {
+    log(`玩家${player === 1 ? "一" : "二"}所有單位已完成部署！`, "phase");
+    // 線上模式同步部署完成狀態
+    if (isOnlineMode) {
+      syncGameStateToFirebase();
+    }
   }
 
   updateDeployButtons();
@@ -7067,6 +7079,12 @@ function scorePrimary(player) {
 }
 
 async function nextPhase() {
+  // 線上模式：只有當前玩家可以切換階段
+  if (isOnlineMode && !isMyTurn()) {
+    log('等待對手行動...', 'info');
+    return;
+  }
+
   // 清除上一階段的視覺特效
   clearAllVisualEffects();
   hideDiceOverlay();
@@ -7079,6 +7097,11 @@ async function nextPhase() {
     log(`進入【${getPhaseNameChinese(gameState.phase)}】`, "phase");
     updatePhaseDisplay();
     updateActionButtons();
+
+    // 線上模式同步階段變更
+    if (isOnlineMode) {
+      syncGameStateToFirebase();
+    }
 
     // 顯示戰略選擇彈窗（玩家控制時）
     const isAI = (gameState.currentPlayer === 1 && ai1Enabled) || (gameState.currentPlayer === 2 && ai2Enabled);
