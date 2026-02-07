@@ -546,7 +546,7 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
   <div class="setup-header">
     <h1>⚔️ 戰鎚 40,000 ⚔️</h1>
     <p>第十版核心規則 - 軍表配置</p>
-    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.0.3 (2026-02-07)</p>
+    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.0.4 (2026-02-07)</p>
   </div>
 
   <!-- 連線對戰選項 -->
@@ -4803,18 +4803,25 @@ function syncArmyToFirebase(player) {
   const detachmentSelect = document.getElementById(`p${player}Detachment`);
 
   console.log('[syncArmy] 上傳軍隊:', roster.length, '個單位');
-  roomRef.child(`armies/${player}`).set({
-    roster: roster.map(u => ({
+
+  // 清理資料，移除所有 undefined 值
+  const cleanRoster = roster.map(u => {
+    const clean = {
       id: u.id || '',
       name: u.name || '',
       points: u.points || 0,
-      stats: u.stats || {},
-      weapons: u.weapons || [],
-      abilities: u.abilities || [],
-      keywords: u.keywords || [],
-      inv: u.inv || null,
+      stats: u.stats ? JSON.parse(JSON.stringify(u.stats)) : {},
+      weapons: Array.isArray(u.weapons) ? u.weapons.map(w => JSON.parse(JSON.stringify(w || {}))) : [],
+      abilities: Array.isArray(u.abilities) ? u.abilities.filter(a => a !== undefined) : [],
+      keywords: Array.isArray(u.keywords) ? u.keywords.filter(k => k !== undefined) : [],
+      inv: u.inv !== undefined ? u.inv : null,
       img: u.img || ''
-    })),
+    };
+    return clean;
+  });
+
+  roomRef.child(`armies/${player}`).set({
+    roster: cleanRoster,
     faction: factionSelect ? factionSelect.value : '',
     detachment: detachmentSelect ? detachmentSelect.value : ''
   }).then(() => {
@@ -5071,10 +5078,19 @@ function displayOpponentArmy(player, armyData) {
     </div>
   `).join("");
 
-  // 更新陣營顯示
+  // 更新陣營和種族規則顯示
   const factionSelect = document.getElementById(`p${player}Faction`);
   if (factionSelect && armyData.faction) {
     factionSelect.value = armyData.faction;
+    // 觸發陣營變更以更新種族規則選項
+    if (typeof updateDetachmentOptions === 'function') {
+      updateDetachmentOptions(player);
+    }
+  }
+
+  const detachmentSelect = document.getElementById(`p${player}Detachment`);
+  if (detachmentSelect && armyData.detachment) {
+    detachmentSelect.value = armyData.detachment;
   }
 }
 
