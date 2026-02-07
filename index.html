@@ -1030,6 +1030,7 @@ async function createRoom() {
   isHost = true;
   onlinePlayerId = 1;
   isOnlineMode = true;  // 確保設為線上模式
+  console.log('[createRoom] 建立房間:', { currentRoomCode, isHost, onlinePlayerId, isOnlineMode });
 
   roomRef = database.ref('rooms/' + currentRoomCode);
 
@@ -1092,6 +1093,7 @@ async function joinRoom() {
   isHost = false;
   onlinePlayerId = 2;
   isOnlineMode = true;  // 確保設為線上模式
+  console.log('[joinRoom] 加入房間:', { currentRoomCode, isHost, onlinePlayerId, isOnlineMode });
 
   // 加入房間
   await roomRef.child('players/2').set({
@@ -1139,9 +1141,12 @@ function listenToRoom() {
 
     // 即時顯示對手的軍隊配置（設定階段）
     const setupScreenEl = document.getElementById('setupScreen');
+    console.log('[listenToRoom] 收到資料:', { hasArmies: !!data.armies, isHost, setupVisible: setupScreenEl?.style.display });
     if (setupScreenEl && setupScreenEl.style.display !== 'none' && data.armies) {
       const opponentId = isHost ? 2 : 1;
+      console.log('[listenToRoom] 檢查對手軍隊:', opponentId, data.armies[opponentId]);
       if (data.armies[opponentId] && data.armies[opponentId].roster) {
+        console.log('[listenToRoom] 顯示對手軍隊:', data.armies[opponentId].roster.length, '個單位');
         displayOpponentArmy(opponentId, data.armies[opponentId]);
       }
     }
@@ -4780,13 +4785,21 @@ function removeFromRoster(player, index) {
 
 // 線上模式：即時同步軍隊到 Firebase
 function syncArmyToFirebase(player) {
-  if (!isOnlineMode || !roomRef) return;
-  if (player !== onlinePlayerId) return;  // 只同步自己的軍隊
+  console.log('[syncArmy] 嘗試同步:', { player, isOnlineMode, hasRoomRef: !!roomRef, onlinePlayerId });
+  if (!isOnlineMode || !roomRef) {
+    console.log('[syncArmy] 跳過：非線上模式或無房間');
+    return;
+  }
+  if (player !== onlinePlayerId) {
+    console.log('[syncArmy] 跳過：不是自己的軍隊', player, '!=', onlinePlayerId);
+    return;
+  }
 
   const roster = armyRosters[player];
   const factionSelect = document.getElementById(`p${player}Faction`);
   const detachmentSelect = document.getElementById(`p${player}Detachment`);
 
+  console.log('[syncArmy] 上傳軍隊:', roster.length, '個單位');
   roomRef.child(`armies/${player}`).set({
     roster: roster.map(u => ({
       id: u.id,
