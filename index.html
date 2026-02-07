@@ -166,6 +166,22 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
 .toolbar-btn.success { background: var(--green); border-color: var(--green); color: #000; }
 .toolbar-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
+.action-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.action-group-label {
+  font-size: 10px;
+  color: var(--gold);
+  font-weight: bold;
+  margin-right: 2px;
+}
+
 .action-hint {
   margin-left: auto;
   font-size: 12px;
@@ -200,6 +216,95 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
   flex-direction: column;
   overflow: hidden;
 }
+
+/* 分數摘要 */
+.score-summary {
+  padding: 8px;
+  background: rgba(0,0,0,0.4);
+  border-bottom: 1px solid var(--line);
+}
+.score-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.score-cell {
+  flex: 1;
+  text-align: center;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+}
+.score-cell.round {
+  flex: 0 0 40px;
+  background: var(--gold);
+  color: #000;
+  font-weight: bold;
+  font-size: 14px;
+}
+.score-cell.p1 {
+  background: rgba(59,130,246,0.2);
+  border: 1px solid var(--blue);
+}
+.score-cell.p2 {
+  background: rgba(239,68,68,0.2);
+  border: 1px solid var(--red);
+}
+.score-cell .vp { color: var(--green); margin-right: 8px; }
+.score-cell .cp { color: var(--gold); }
+.score-cell b { font-size: 13px; }
+
+/* 面板分頁 */
+.panel-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--line);
+  background: rgba(0,0,0,0.2);
+}
+.panel-tab {
+  flex: 1;
+  padding: 8px 4px;
+  font-size: 10px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  border-bottom: 2px solid transparent;
+}
+.panel-tab:hover { color: var(--txt); background: rgba(255,255,255,0.05); }
+.panel-tab.active {
+  color: var(--gold);
+  border-bottom-color: var(--gold);
+  background: rgba(251,191,36,0.1);
+}
+
+/* 面板內容 */
+.panel-content {
+  display: none;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+.panel-content.active { display: flex; flex-direction: column; }
+.panel-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: rgba(0,0,0,0.2);
+  border-bottom: 1px solid var(--line);
+}
+.mini-btn {
+  padding: 2px 6px;
+  font-size: 10px;
+  background: rgba(239,68,68,0.3);
+  border: none;
+  border-radius: 3px;
+  color: #fff;
+  cursor: pointer;
+}
+.mini-btn:hover { background: var(--red); }
 
 .selected-unit-info {
   padding: 12px;
@@ -893,6 +998,9 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
     <div style="font-size: 12px;">
       當前: <span id="currentPlayerName" style="color: var(--gold);">玩家一</span>
       <span id="aiIndicator" style="margin-left: 8px; padding: 2px 6px; background: var(--red); border-radius: 4px; font-size: 10px; display: none;">🤖 AI模式</span>
+    </div>
+    <div id="missionSummary" style="font-size: 11px; color: var(--muted); display: none;">
+      📋 任務: <span id="missionName" style="color: var(--gold);"></span>
       <span id="currentDetachment" style="margin-left: 8px; padding: 2px 6px; background: var(--green); border-radius: 4px; font-size: 10px;"></span>
     </div>
   </div>
@@ -919,17 +1027,33 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
         <button class="toolbar-btn success" id="btnStartRound" onclick="finishDeploymentAndStart()" style="display:none;">開始回合 ▶</button>
         <button class="toolbar-btn" id="btnSwitchDeploy" onclick="switchDeploySide()" style="display:none;">切換部署方</button>
         <button class="toolbar-btn primary" id="btnNextPhase" onclick="nextPhase()">下一階段 ▶</button>
-        <button class="toolbar-btn" id="btnMove" onclick="setAction('move')" disabled>移動</button>
-        <button class="toolbar-btn" id="btnAdvance" onclick="setAction('advance')" disabled style="background: #228855;">🏃 急行</button>
-        <button class="toolbar-btn" id="btnFallBack" onclick="setAction('fallback')" disabled style="background: #885522;">🔙 撤退</button>
-        <button class="toolbar-btn" id="btnDeepStrike" onclick="setAction('deepstrike')" disabled style="background: #6622aa;">📡 深入打擊</button>
-        <button class="toolbar-btn" id="btnEmbark" onclick="setAction('embark')" disabled style="background: #447799; display: none;">🚐 搭載</button>
-        <button class="toolbar-btn" id="btnDisembark" onclick="setAction('disembark')" disabled style="background: #774499; display: none;">🚪 下車</button>
-        <button class="toolbar-btn" id="btnHover" onclick="toggleSelectedUnitHover()" disabled style="background: #338899; display: none;">🚁 懸停</button>
-        <button class="toolbar-btn" id="btnShoot" onclick="setAction('shoot')" disabled>射擊</button>
-        <button class="toolbar-btn" id="btnCharge" onclick="setAction('charge')" disabled>衝鋒</button>
-        <button class="toolbar-btn" id="btnFight" onclick="setAction('fight')" disabled>近戰</button>
-        <button class="toolbar-btn danger" id="btnConfirmAttack" onclick="confirmAttack()" style="display:none;">⚔️ 確認攻擊</button>
+        <!-- 移動階段動作群組 -->
+        <span id="movementActions" class="action-group" style="display: none;">
+          <span class="action-group-label">移動:</span>
+          <button class="toolbar-btn" id="btnMove" onclick="setAction('move')" disabled>📍 一般</button>
+          <button class="toolbar-btn" id="btnAdvance" onclick="setAction('advance')" disabled style="background: #228855;">🏃 急行</button>
+          <button class="toolbar-btn" id="btnFallBack" onclick="setAction('fallback')" disabled style="background: #885522;">🔙 撤退</button>
+          <button class="toolbar-btn" id="btnDeepStrike" onclick="setAction('deepstrike')" disabled style="background: #6622aa;">📡 深入打擊</button>
+          <button class="toolbar-btn" id="btnEmbark" onclick="setAction('embark')" disabled style="background: #447799; display: none;">🚐 搭載</button>
+          <button class="toolbar-btn" id="btnDisembark" onclick="setAction('disembark')" disabled style="background: #774499; display: none;">🚪 下車</button>
+          <button class="toolbar-btn" id="btnHover" onclick="toggleSelectedUnitHover()" disabled style="background: #338899; display: none;">🚁 懸停</button>
+        </span>
+        <!-- 射擊階段動作 -->
+        <span id="shootingActions" class="action-group" style="display: none;">
+          <span class="action-group-label">射擊:</span>
+          <button class="toolbar-btn" id="btnShoot" onclick="setAction('shoot')" disabled>🎯 選擇目標</button>
+        </span>
+        <!-- 衝鋒階段動作 -->
+        <span id="chargeActions" class="action-group" style="display: none;">
+          <span class="action-group-label">衝鋒:</span>
+          <button class="toolbar-btn" id="btnCharge" onclick="setAction('charge')" disabled>⚡ 發起衝鋒</button>
+        </span>
+        <!-- 近戰階段動作 -->
+        <span id="fightActions" class="action-group" style="display: none;">
+          <span class="action-group-label">近戰:</span>
+          <button class="toolbar-btn" id="btnFight" onclick="setAction('fight')" disabled>⚔️ 攻擊敵人</button>
+        </span>
+        <button class="toolbar-btn danger" id="btnConfirmAttack" onclick="confirmAttack()" style="display:none;">✓ 確認攻擊</button>
         <button class="toolbar-btn" id="btnReroll" onclick="useCommandReroll()" disabled title="花費1CP重擲一顆骰子">🎲 指揮重擲</button>
         <span style="font-size: 11px; color: var(--gold); margin-left: 4px;">CP: <b id="cpDisplay">0</b></span>
         <button class="toolbar-btn danger" id="btnEndTurn" onclick="endTurn()">結束回合</button>
@@ -955,61 +1079,70 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
 
     <!-- Right: Info Panel -->
     <div class="info-panel">
+      <!-- 分數摘要條 -->
+      <div class="score-summary">
+        <div class="score-row">
+          <span class="score-cell round">R<span id="roundDisplay">1</span></span>
+          <span class="score-cell p1" title="玩家一">
+            <span class="vp">VP:<b id="p1VPDisplay">0</b></span>
+            <span class="cp">CP:<b id="p1CPDisplay">0</b></span>
+          </span>
+          <span class="score-cell p2" title="玩家二">
+            <span class="vp">VP:<b id="p2VPDisplay">0</b></span>
+            <span class="cp">CP:<b id="p2CPDisplay">0</b></span>
+          </span>
+        </div>
+      </div>
+
+      <!-- 選中單位資訊 -->
       <div class="selected-unit-info" id="selectedUnitInfo">
         <p style="color: var(--muted); text-align: center; padding: 20px;">點擊單位查看詳細資訊</p>
       </div>
 
-      <div class="panel-header" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
-        <span onclick="toggleCombatLog()" style="flex: 1;">戰鬥日誌</span>
-        <button onclick="clearCombatLog(); event.stopPropagation();" style="padding: 2px 6px; font-size: 9px; background: var(--red); border: none; color: white; border-radius: 3px; cursor: pointer; margin-right: 8px;" title="清空日誌">🗑️</button>
-        <span id="combatLogToggle" style="font-size: 10px;" onclick="toggleCombatLog()">▼</span>
-      </div>
-      <div class="combat-log" id="combatLogContainer">
-        <div class="log-content" id="logContent"></div>
+      <!-- 分頁選擇器 -->
+      <div class="panel-tabs">
+        <button class="panel-tab active" data-panel="log" onclick="switchInfoPanel('log')">📜 日誌</button>
+        <button class="panel-tab" data-panel="mission" onclick="switchInfoPanel('mission')">📋 任務</button>
+        <button class="panel-tab" data-panel="stratagem" onclick="switchInfoPanel('stratagem')">🎴 戰略</button>
+        <button class="panel-tab" data-panel="tactical" onclick="switchInfoPanel('tactical')">🃏 戰術</button>
       </div>
 
-      <!-- 戰略面板 -->
-      <div class="panel-header" style="cursor: pointer;" onclick="toggleStratagemPanel()">
-        🎴 戰略 (Stratagems) <span id="stratagemToggle">▼</span>
-      </div>
-      <div id="stratagemPanel" style="max-height: 150px; overflow-y: auto; margin-bottom: 10px; display: none;">
-        <div id="stratagemList" style="font-size: 11px; color: var(--txt);">
-          <p style="color: var(--muted); padding: 8px;">開始遊戲後顯示可用戰略</p>
+      <!-- 日誌面板 -->
+      <div class="panel-content active" id="panelLog">
+        <div class="panel-toolbar">
+          <span style="font-size: 11px; color: var(--muted);">戰鬥日誌</span>
+          <button onclick="clearCombatLog()" class="mini-btn" title="清空日誌">🗑️</button>
+        </div>
+        <div class="combat-log" id="combatLogContainer">
+          <div class="log-content" id="logContent"></div>
         </div>
       </div>
 
       <!-- 任務面板 -->
-      <div class="panel-header" style="cursor: pointer;" onclick="toggleMissionPanel()">
-        📋 任務 (Missions) <span id="missionToggle">▼</span>
-      </div>
-      <div id="missionPanel" style="max-height: 200px; overflow-y: auto; margin-bottom: 10px; display: none;">
+      <div class="panel-content" id="panelMission">
         <div id="missionContent" style="font-size: 11px; color: var(--txt); padding: 8px;">
           <p style="color: var(--muted);">開始遊戲後顯示任務</p>
         </div>
       </div>
 
-      <div class="score-bar">
-        <div class="score-item">
-          <div class="score-label">回合</div>
-          <div class="score-value" id="roundDisplay">1</div>
-        </div>
-        <div class="score-item">
-          <div class="score-label">玩家一 VP</div>
-          <div class="score-value" style="color: var(--blue);" id="p1VPDisplay">0</div>
-        </div>
-        <div class="score-item">
-          <div class="score-label">玩家二 VP</div>
-          <div class="score-value" style="color: var(--red);" id="p2VPDisplay">0</div>
-        </div>
-        <div class="score-item">
-          <div class="score-label">玩家一 CP</div>
-          <div class="score-value" style="color: var(--blue);" id="p1CPDisplay">0</div>
-        </div>
-        <div class="score-item">
-          <div class="score-label">玩家二 CP</div>
-          <div class="score-value" style="color: var(--red);" id="p2CPDisplay">0</div>
+      <!-- 戰略面板 -->
+      <div class="panel-content" id="panelStratagem">
+        <div id="stratagemList" style="font-size: 11px; color: var(--txt); padding: 8px;">
+          <p style="color: var(--muted);">開始遊戲後顯示可用戰略</p>
         </div>
       </div>
+
+      <!-- 戰術目標面板 -->
+      <div class="panel-content" id="panelTactical">
+        <div id="tacticalObjectivesContent" style="font-size: 11px; color: var(--txt); padding: 8px;">
+          <p style="color: var(--muted);">開始遊戲後顯示戰術目標卡</p>
+        </div>
+      </div>
+
+      <!-- 保留隱藏的舊面板ID以相容舊函數 -->
+      <div id="missionPanel" style="display:none;"></div>
+      <div id="stratagemPanel" style="display:none;"></div>
+      <div id="tacticalPanel" style="display:none;"></div>
     </div>
   </div>
 </div>
@@ -3990,7 +4123,328 @@ let gameState = {
   primaryMission: null,   // 主要任務
   secondaryMissions: { 1: [], 2: [] },  // 次要任務（每個玩家最多3個）
   missionProgress: { 1: {}, 2: {} },    // 任務進度追蹤
-  maxRounds: 5  // 遊戲最大回合數
+  maxRounds: 5,  // 遊戲最大回合數
+  // ===== 戰術目標卡系統 =====
+  tacticalObjectives: { 1: [], 2: [] },  // 當前持有的戰術目標卡
+  tacticalDeck: [],  // 戰術目標卡牌組
+  discardedCards: []  // 已棄置的卡片
+};
+
+// ===== 完整地形規則 (10版官方規則) =====
+const TERRAIN_RULES = {
+  "ruins": {
+    name: "廢墟 Ruins",
+    color: "#4a5568",
+    effects: {
+      cover: true,          // 提供掩護
+      dense: false,         // 穿過時-1命中
+      breachable: true,     // Infantry可穿過
+      obscuring: false,     // 完全阻擋視線
+      difficultGround: false // 困難地形
+    },
+    description: "步兵可進入，提供掩護+1豁免"
+  },
+  "woods": {
+    name: "樹林 Woods",
+    color: "#2d5a27",
+    effects: {
+      cover: true,
+      dense: true,          // 穿過樹林射擊-1命中
+      breachable: true,
+      obscuring: false,
+      difficultGround: false
+    },
+    description: "提供掩護，穿過射擊-1命中"
+  },
+  "crater": {
+    name: "彈坑 Craters",
+    color: "#854d0e",
+    effects: {
+      cover: true,
+      dense: false,
+      breachable: true,
+      obscuring: false,
+      difficultGround: true  // 移動-2"
+    },
+    description: "提供掩護，移動速度-2\""
+  },
+  "barricade": {
+    name: "路障 Barricades",
+    color: "#78716c",
+    effects: {
+      cover: true,
+      dense: false,
+      breachable: false,     // 阻擋移動
+      obscuring: false,
+      difficultGround: false
+    },
+    description: "阻擋移動，3\"內提供掩護"
+  },
+  "building": {
+    name: "建築物 Buildings",
+    color: "#1e40af",
+    effects: {
+      cover: true,
+      dense: false,
+      breachable: false,
+      obscuring: true,       // 完全阻擋視線
+      difficultGround: false
+    },
+    description: "阻擋視線和移動，Infantry可進入"
+  },
+  "hazardous": {
+    name: "危險地形 Hazardous",
+    color: "#dc2626",
+    effects: {
+      cover: false,
+      dense: false,
+      breachable: true,
+      obscuring: false,
+      difficultGround: true,
+      hazardous: true        // 進入時擲D6，1=D3致命傷
+    },
+    description: "進入時D6骰1=受D3致命傷"
+  },
+  "shrine": {
+    name: "神殿 Shrine",
+    color: "#7c3aed",
+    effects: {
+      cover: true,
+      dense: false,
+      breachable: true,
+      obscuring: false,
+      difficultGround: false,
+      inspiring: true        // 6\"內+1領導測試
+    },
+    description: "提供掩護，6\"內+1領導測試"
+  }
+};
+
+// ===== 戰術目標卡定義 (Tactical Objectives) =====
+const TACTICAL_OBJECTIVE_CARDS = [
+  // ===== 進攻型目標 =====
+  { id: "storm", name: "風暴 Storm", vp: 2, type: "attack",
+    condition: "控制一個本回合開始時不是由你控制的目標點",
+    check: (player) => {
+      const gained = gameState.objectives.filter(o =>
+        o.control === player && o.previousControl !== player
+      );
+      return gained.length > 0;
+    }
+  },
+  { id: "behind-lines", name: "深入敵後 Behind Enemy Lines", vp: 4, type: "attack",
+    condition: "在敵方部署區有至少一個單位",
+    check: (player) => {
+      const enemyZone = player === 1 ? { minX: 0.7, maxX: 1 } : { minX: 0, maxX: 0.3 };
+      const w = gameState.canvasWidth || 600;
+      return gameState.units.some(u =>
+        u.player === player && u.alive &&
+        u.x >= w * enemyZone.minX && u.x <= w * enemyZone.maxX
+      );
+    }
+  },
+  { id: "overwhelming", name: "壓倒性攻勢 Overwhelming Force", vp: 3, type: "attack",
+    condition: "本回合摧毀至少2個敵方單位",
+    check: (player) => {
+      const kills = gameState.missionProgress[player]?.killedThisRound || 0;
+      return kills >= 2;
+    }
+  },
+  { id: "assassinate", name: "斬首行動 Assassinate", vp: 4, type: "attack",
+    condition: "本回合摧毀一個敵方Character單位",
+    check: (player) => {
+      return gameState.missionProgress[player]?.killedCharacterThisRound || false;
+    }
+  },
+  // ===== 防守型目標 =====
+  { id: "defend", name: "堅守陣線 Defend", vp: 2, type: "defense",
+    condition: "在你的部署區控制至少一個目標點",
+    check: (player) => {
+      const myZone = player === 1 ? { minX: 0, maxX: 0.3 } : { minX: 0.7, maxX: 1 };
+      const w = gameState.canvasWidth || 600;
+      return gameState.objectives.some(o =>
+        o.control === player &&
+        o.x >= w * myZone.minX && o.x <= w * myZone.maxX
+      );
+    }
+  },
+  { id: "hold-center", name: "掌控中場 Hold the Centre", vp: 3, type: "defense",
+    condition: "控制戰場中央的目標點（目標1）",
+    check: (player) => {
+      const centerObj = gameState.objectives.find(o => o.id === 1);
+      return centerObj && centerObj.control === player;
+    }
+  },
+  { id: "no-mercy", name: "格殺勿論 No Mercy, No Respite", vp: 2, type: "defense",
+    condition: "本回合你的任何單位未被摧毀",
+    check: (player) => {
+      return !(gameState.missionProgress[player]?.lostUnitsThisRound > 0);
+    }
+  },
+  // ===== 戰術型目標 =====
+  { id: "area-denial", name: "區域封鎖 Area Denial", vp: 3, type: "tactical",
+    condition: "控制至少3個目標點",
+    check: (player) => {
+      const controlled = gameState.objectives.filter(o => o.control === player).length;
+      return controlled >= 3;
+    }
+  },
+  { id: "engage", name: "接敵 Engage on All Fronts", vp: 2, type: "tactical",
+    condition: "在戰場的至少3個不同象限有單位",
+    check: (player) => {
+      const w = gameState.canvasWidth || 600;
+      const h = gameState.canvasHeight || 440;
+      const quadrants = [false, false, false, false]; // TL, TR, BL, BR
+      gameState.units.filter(u => u.player === player && u.alive).forEach(u => {
+        if (u.x < w/2 && u.y < h/2) quadrants[0] = true;
+        if (u.x >= w/2 && u.y < h/2) quadrants[1] = true;
+        if (u.x < w/2 && u.y >= h/2) quadrants[2] = true;
+        if (u.x >= w/2 && u.y >= h/2) quadrants[3] = true;
+      });
+      return quadrants.filter(Boolean).length >= 3;
+    }
+  },
+  { id: "extend", name: "延伸戰線 Extend Battle Lines", vp: 2, type: "tactical",
+    condition: "控制比對手更多的目標點",
+    check: (player) => {
+      const enemy = player === 1 ? 2 : 1;
+      const myControl = gameState.objectives.filter(o => o.control === player).length;
+      const enemyControl = gameState.objectives.filter(o => o.control === enemy).length;
+      return myControl > enemyControl;
+    }
+  },
+  { id: "cleanse", name: "淨化 Cleanse", vp: 2, type: "tactical",
+    condition: "控制一個距離任何敵方單位超過6\"的目標點",
+    check: (player) => {
+      const enemy = player === 1 ? 2 : 1;
+      const enemies = gameState.units.filter(u => u.player === enemy && u.alive);
+      return gameState.objectives.some(obj => {
+        if (obj.control !== player) return false;
+        return enemies.every(e =>
+          pixelsToInch(Math.hypot(e.x - obj.x, e.y - obj.y)) > 6
+        );
+      });
+    }
+  }
+];
+
+// ===== 核心戰略詳細效果 (Core Stratagems) =====
+const CORE_STRATAGEMS = {
+  "command-reroll": {
+    name: "指揮重擲 Command Re-roll",
+    cp: 1,
+    phase: ["any"],
+    timing: "當擲一顆骰子時",
+    effect: "重擲該骰子",
+    apply: (context) => ({ reroll: true })
+  },
+  "epic-challenge": {
+    name: "史詩決鬥 Epic Challenge",
+    cp: 1,
+    phase: ["fight"],
+    timing: "當你的Character發起近戰時",
+    effect: "對敵方Character的攻擊+1致傷、+1傷害",
+    apply: (context) => {
+      if (context.attacker?.keywords?.includes("Character") &&
+          context.target?.keywords?.includes("Character")) {
+        return { woundBonus: 1, damageBonus: 1 };
+      }
+      return {};
+    }
+  },
+  "counter-offensive": {
+    name: "反擊 Counter-Offensive",
+    cp: 2,
+    phase: ["fight"],
+    timing: "敵方單位完成近戰後",
+    effect: "你的一個接戰中單位立即發起近戰",
+    apply: (context) => ({ fightImmediately: true })
+  },
+  "insane-bravery": {
+    name: "瘋狂勇氣 Insane Bravery",
+    cp: 1,
+    phase: ["command"],
+    timing: "戰慄測試失敗時",
+    effect: "該單位自動通過戰慄測試",
+    apply: (context) => ({ autoPassBattleShock: true })
+  },
+  "heroic-intervention": {
+    name: "英勇介入 Heroic Intervention",
+    cp: 2,
+    phase: ["charge"],
+    timing: "敵方完成衝鋒移動後",
+    effect: "你的6\"內Character可移動3\"進入接戰",
+    apply: (context) => ({ heroicIntervention: true, moveDistance: 3 })
+  },
+  "fire-overwatch": {
+    name: "守望射擊 Fire Overwatch",
+    cp: 1,
+    phase: ["charge", "movement"],
+    timing: "敵方單位移動或衝鋒時",
+    effect: "射擊該單位，命中需6+",
+    apply: (context) => ({ overwatch: true, hitNeed: 6 })
+  },
+  "smokescreen": {
+    name: "煙幕 Smokescreen",
+    cp: 1,
+    phase: ["shooting"],
+    timing: "敵方射擊你的載具或怪獸時",
+    effect: "該單位獲得掩護加成",
+    apply: (context) => {
+      if (context.target?.keywords?.includes("Vehicle") ||
+          context.target?.keywords?.includes("Monster")) {
+        return { grantCover: true };
+      }
+      return {};
+    }
+  },
+  "grenades": {
+    name: "手榴彈 Grenades",
+    cp: 1,
+    phase: ["shooting"],
+    timing: "選擇射擊武器時",
+    effect: "射擊D6次攻擊，S4 AP0 D1",
+    apply: (context) => ({
+      overrideWeapon: { A: "D6", S: 4, AP: 0, D: 1, name: "手榴彈" }
+    })
+  },
+  "tank-shock": {
+    name: "坦克衝撞 Tank Shock",
+    cp: 1,
+    phase: ["charge"],
+    timing: "載具完成衝鋒時",
+    effect: "對每個衝鋒目標擲D6，等於或大於韌性值造成D3致命傷",
+    apply: (context) => ({ tankShock: true })
+  },
+  "rapid-ingress": {
+    name: "快速突入 Rapid Ingress",
+    cp: 1,
+    phase: ["movement"],
+    timing: "敵方移動階段結束時",
+    effect: "一個預備隊單位可立即部署",
+    apply: (context) => ({ deployReserves: true })
+  },
+  "go-to-ground": {
+    name: "臥倒 Go to Ground",
+    cp: 1,
+    phase: ["shooting"],
+    timing: "你的Infantry成為射擊目標時",
+    effect: "該單位獲得掩護加成，且移動力變為0直到下回合",
+    apply: (context) => {
+      if (context.target?.keywords?.includes("Infantry")) {
+        return { grantCover: true, immobilize: true };
+      }
+      return {};
+    }
+  },
+  "armour-of-contempt": {
+    name: "蔑視護甲 Armour of Contempt",
+    cp: 1,
+    phase: ["shooting", "fight"],
+    timing: "你的單位成為攻擊目標時",
+    effect: "AP改進1點（AP-1變為AP0）",
+    apply: (context) => ({ reduceAP: 1 })
+  }
 };
 
 // ===== 主要任務定義 (Primary Missions) =====
@@ -4199,28 +4653,254 @@ const SECONDARY_MISSIONS = {
 };
 
 // 初始化任務系統
-function initMissionSystem() {
-  // 隨機選擇主要任務
-  const missionKeys = Object.keys(PRIMARY_MISSIONS);
-  const randomMission = missionKeys[Math.floor(Math.random() * missionKeys.length)];
-  gameState.primaryMission = randomMission;
-
+async function initMissionSystem() {
   // 初始化任務進度
   gameState.missionProgress = {
-    1: { killedThisRound: 0, modelsKilled: 0, modelsKilledForPrisoners: 0 },
-    2: { killedThisRound: 0, modelsKilled: 0, modelsKilledForPrisoners: 0 }
+    1: { killedThisRound: 0, modelsKilled: 0, modelsKilledForPrisoners: 0, killedCharacterThisRound: false, lostUnitsThisRound: 0 },
+    2: { killedThisRound: 0, modelsKilled: 0, modelsKilledForPrisoners: 0, killedCharacterThisRound: false, lostUnitsThisRound: 0 }
   };
+
+  // 初始化戰術目標卡牌組
+  initTacticalObjectivesDeck();
 
   // 初始化次要任務選擇
   if (!gameState.secondaryMissions) {
     gameState.secondaryMissions = { 1: [], 2: [] };
   }
 
-  log(`📋 主要任務: ${PRIMARY_MISSIONS[randomMission].name}`, "phase");
-  log(`📝 ${PRIMARY_MISSIONS[randomMission].description}`, "info");
+  // 顯示任務選擇彈窗並等待
+  await showMissionSelectionPopup();
+}
 
-  // 更新任務UI
+// 任務選擇彈窗
+async function showMissionSelectionPopup() {
+  // AI vs AI 模式自動選擇
+  if (ai1Enabled && ai2Enabled) {
+    autoSelectMissions();
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.id = "missionSelectOverlay";
+    overlay.style.cssText = `
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.9); z-index: 10000;
+      display: flex; justify-content: center; align-items: center;
+    `;
+
+    let html = `
+      <div style="background: var(--panel); border: 2px solid var(--gold); border-radius: 12px;
+                  padding: 24px; max-width: 700px; max-height: 90vh; overflow-y: auto;">
+        <h2 style="color: var(--gold); text-align: center; margin-bottom: 20px;">📋 任務選擇 Mission Selection</h2>
+
+        <div style="margin-bottom: 20px;">
+          <h3 style="color: var(--txt); margin-bottom: 10px;">🎯 主要任務 Primary Mission</h3>
+          <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+    `;
+
+    // 主要任務選項
+    for (const [id, mission] of Object.entries(PRIMARY_MISSIONS)) {
+      const isSelected = gameState.primaryMission === id;
+      html += `
+        <div class="mission-option ${isSelected ? 'selected' : ''}"
+             onclick="selectPrimaryMission('${id}')"
+             style="flex: 1; min-width: 180px; padding: 12px; background: ${isSelected ? 'rgba(255,215,0,0.3)' : 'rgba(0,0,0,0.4)'};
+                    border: 2px solid ${isSelected ? 'var(--gold)' : 'rgba(255,255,255,0.2)'};
+                    border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+          <div style="font-weight: bold; color: ${isSelected ? 'var(--gold)' : 'var(--txt)'}; margin-bottom: 6px;">
+            ${isSelected ? '✓ ' : ''}${mission.name}
+          </div>
+          <div style="font-size: 11px; color: var(--muted);">${mission.description}</div>
+        </div>
+      `;
+    }
+
+    html += `
+          </div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <h3 style="color: var(--blue); margin-bottom: 10px;">📝 玩家一 次要任務 (選擇2個)</h3>
+          <div id="p1SecondaryList" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <h3 style="color: var(--red); margin-bottom: 10px;">📝 玩家二 次要任務 (選擇2個)</h3>
+          <div id="p2SecondaryList" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+        </div>
+
+        <div style="text-align: center; margin-top: 20px;">
+          <button id="confirmMissionBtn" onclick="confirmMissionSelection()"
+                  style="padding: 12px 40px; font-size: 16px; background: var(--gold); color: #000;
+                         border: none; border-radius: 8px; cursor: pointer; font-weight: bold;"
+                  disabled>
+            ⚔️ 開始戰鬥
+          </button>
+          <p id="missionSelectHint" style="color: var(--muted); margin-top: 10px; font-size: 12px;">
+            請選擇主要任務和雙方次要任務
+          </p>
+        </div>
+      </div>
+    `;
+
+    overlay.innerHTML = html;
+    document.body.appendChild(overlay);
+
+    // 預設選擇第一個主要任務
+    if (!gameState.primaryMission) {
+      selectPrimaryMission(Object.keys(PRIMARY_MISSIONS)[0]);
+    }
+
+    // 更新次要任務列表
+    updateSecondaryMissionList(1);
+    updateSecondaryMissionList(2);
+
+    window.missionSelectResolve = resolve;
+  });
+}
+
+// 選擇主要任務
+function selectPrimaryMission(missionId) {
+  gameState.primaryMission = missionId;
+
+  // 更新UI
+  document.querySelectorAll('.mission-option').forEach(el => {
+    el.classList.remove('selected');
+    el.style.background = 'rgba(0,0,0,0.4)';
+    el.style.borderColor = 'rgba(255,255,255,0.2)';
+    el.querySelector('div').style.color = 'var(--txt)';
+  });
+
+  event.currentTarget.classList.add('selected');
+  event.currentTarget.style.background = 'rgba(255,215,0,0.3)';
+  event.currentTarget.style.borderColor = 'var(--gold)';
+  event.currentTarget.querySelector('div').style.color = 'var(--gold)';
+  event.currentTarget.querySelector('div').textContent = '✓ ' + PRIMARY_MISSIONS[missionId].name;
+
+  checkMissionSelectionComplete();
+}
+
+// 更新次要任務列表
+function updateSecondaryMissionList(player) {
+  const container = document.getElementById(`p${player}SecondaryList`);
+  if (!container) return;
+
+  const selected = gameState.secondaryMissions[player] || [];
+  let html = '';
+
+  for (const [id, mission] of Object.entries(SECONDARY_MISSIONS)) {
+    const isSelected = selected.includes(id);
+    const canSelect = selected.length < 2 || isSelected;
+
+    html += `
+      <div onclick="${canSelect ? `toggleSecondaryMission(${player}, '${id}')` : ''}"
+           style="padding: 8px 12px; background: ${isSelected ? 'rgba(100,200,100,0.3)' : 'rgba(0,0,0,0.3)'};
+                  border: 1px solid ${isSelected ? 'var(--green)' : 'rgba(255,255,255,0.2)'};
+                  border-radius: 6px; cursor: ${canSelect ? 'pointer' : 'not-allowed'};
+                  opacity: ${canSelect ? '1' : '0.5'}; font-size: 11px;">
+        <span style="color: ${isSelected ? 'var(--green)' : 'var(--txt)'};">
+          ${isSelected ? '✓ ' : ''}${mission.name}
+        </span>
+        <span style="color: var(--gold); margin-left: 4px;">(+${mission.maxVP}VP)</span>
+      </div>
+    `;
+  }
+
+  container.innerHTML = html;
+  checkMissionSelectionComplete();
+}
+
+// 切換次要任務選擇
+function toggleSecondaryMission(player, missionId) {
+  const selected = gameState.secondaryMissions[player];
+  const index = selected.indexOf(missionId);
+
+  if (index >= 0) {
+    selected.splice(index, 1);
+  } else if (selected.length < 2) {
+    selected.push(missionId);
+  }
+
+  updateSecondaryMissionList(player);
+}
+
+// 檢查任務選擇是否完成
+function checkMissionSelectionComplete() {
+  const btn = document.getElementById('confirmMissionBtn');
+  const hint = document.getElementById('missionSelectHint');
+  if (!btn || !hint) return;
+
+  const hasPrimary = !!gameState.primaryMission;
+  const p1Count = gameState.secondaryMissions[1]?.length || 0;
+  const p2Count = gameState.secondaryMissions[2]?.length || 0;
+
+  if (hasPrimary && p1Count === 2 && p2Count === 2) {
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    hint.textContent = '準備完成！點擊開始戰鬥';
+    hint.style.color = 'var(--green)';
+  } else {
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    let missing = [];
+    if (!hasPrimary) missing.push('主要任務');
+    if (p1Count < 2) missing.push(`玩家一次要任務(${p1Count}/2)`);
+    if (p2Count < 2) missing.push(`玩家二次要任務(${p2Count}/2)`);
+    hint.textContent = '還需選擇: ' + missing.join(', ');
+    hint.style.color = 'var(--muted)';
+  }
+}
+
+// AI 自動選擇任務
+function autoSelectMissions() {
+  // 隨機選擇主要任務
+  const missionKeys = Object.keys(PRIMARY_MISSIONS);
+  gameState.primaryMission = missionKeys[Math.floor(Math.random() * missionKeys.length)];
+
+  // 為每個玩家隨機選擇2個次要任務
+  const secondaryKeys = Object.keys(SECONDARY_MISSIONS);
+  for (let p = 1; p <= 2; p++) {
+    gameState.secondaryMissions[p] = [];
+    const shuffled = [...secondaryKeys].sort(() => Math.random() - 0.5);
+    gameState.secondaryMissions[p] = shuffled.slice(0, 2);
+  }
+
+  const mission = PRIMARY_MISSIONS[gameState.primaryMission];
+  log(`📋 主要任務: ${mission.name}`, "phase");
+  log(`📝 ${mission.description}`, "info");
+
+  for (let p = 1; p <= 2; p++) {
+    const names = gameState.secondaryMissions[p].map(id => SECONDARY_MISSIONS[id].name).join(', ');
+    log(`📝 AI-${p}次要任務: ${names}`, "info");
+  }
+
+  // 更新UI並切換到任務面板
+  switchInfoPanel('mission');
   updateMissionUI();
+}
+
+// 確認任務選擇
+function confirmMissionSelection() {
+  const overlay = document.getElementById('missionSelectOverlay');
+  if (overlay) overlay.remove();
+
+  const mission = PRIMARY_MISSIONS[gameState.primaryMission];
+  log(`📋 主要任務: ${mission.name}`, "phase");
+  log(`📝 ${mission.description}`, "info");
+
+  for (let p = 1; p <= 2; p++) {
+    const names = gameState.secondaryMissions[p].map(id => SECONDARY_MISSIONS[id].name).join(', ');
+    log(`📝 玩家${p}次要任務: ${names}`, "info");
+  }
+
+  // 切換到任務面板
+  switchInfoPanel('mission');
+  updateMissionUI();
+
+  if (window.missionSelectResolve) {
+    window.missionSelectResolve();
+  }
 }
 
 // 檢查次要任務
@@ -4253,6 +4933,290 @@ function selectSecondaryMission(player, missionId) {
   gameState.secondaryMissions[player].push(missionId);
   log(`✅ 玩家${player}選擇次要任務: ${SECONDARY_MISSIONS[missionId].name}`, "info");
   return true;
+}
+
+// ===== 戰術目標卡系統 =====
+
+// 初始化戰術目標卡牌組
+function initTacticalObjectivesDeck() {
+  gameState.tacticalDeck = [...TACTICAL_OBJECTIVE_CARDS].sort(() => Math.random() - 0.5);
+  gameState.tacticalObjectives = { 1: [], 2: [] };
+  gameState.discardedCards = [];
+  log("📋 戰術目標卡組已洗牌", "info");
+}
+
+// 抽取戰術目標卡
+function drawTacticalObjective(player) {
+  const hand = gameState.tacticalObjectives[player];
+  if (hand.length >= 3) {
+    log(`玩家${player}已持有3張戰術目標卡`, "info");
+    return null;
+  }
+
+  if (gameState.tacticalDeck.length === 0) {
+    // 重新洗牌棄牌堆
+    gameState.tacticalDeck = [...gameState.discardedCards].sort(() => Math.random() - 0.5);
+    gameState.discardedCards = [];
+    log("📋 戰術目標卡組已重新洗牌", "info");
+  }
+
+  const card = gameState.tacticalDeck.pop();
+  if (card) {
+    hand.push(card);
+    log(`🃏 玩家${player}抽取戰術目標: ${card.name}`, "phase");
+    updateTacticalObjectivesUI();
+    return card;
+  }
+  return null;
+}
+
+// 棄置戰術目標卡（可選：消耗1CP換新卡）
+function discardTacticalObjective(player, cardId, drawNew = false) {
+  const hand = gameState.tacticalObjectives[player];
+  const index = hand.findIndex(c => c.id === cardId);
+  if (index === -1) return false;
+
+  const card = hand.splice(index, 1)[0];
+  gameState.discardedCards.push(card);
+  log(`🗑️ 玩家${player}棄置戰術目標: ${card.name}`, "info");
+
+  if (drawNew && gameState.cp[player] >= 1) {
+    spendCP(player, 1);
+    drawTacticalObjective(player);
+  }
+
+  updateTacticalObjectivesUI();
+  return true;
+}
+
+// 檢查並完成戰術目標
+function checkTacticalObjectives(player) {
+  const hand = gameState.tacticalObjectives[player];
+  const completed = [];
+
+  for (let i = hand.length - 1; i >= 0; i--) {
+    const card = hand[i];
+    if (card.check(player)) {
+      completed.push(card);
+      gameState.vp[player] += card.vp;
+      hand.splice(i, 1);
+      gameState.discardedCards.push(card);
+      log(`🎯 戰術目標完成: ${card.name} (+${card.vp}VP)`, "phase");
+
+      showFloatingText(
+        (gameState.canvasWidth || 600) / 2,
+        (gameState.canvasHeight || 440) / 2,
+        `${card.name} +${card.vp}VP!`,
+        { color: "#fbbf24", fontSize: 20, duration: 2000 }
+      );
+    }
+  }
+
+  if (completed.length > 0) {
+    updateVPDisplay();
+    updateTacticalObjectivesUI();
+
+    // 完成後自動補充手牌
+    while (hand.length < 2 && gameState.tacticalDeck.length > 0) {
+      drawTacticalObjective(player);
+    }
+  }
+
+  return completed;
+}
+
+// 更新戰術目標UI
+function updateTacticalObjectivesUI() {
+  const container = document.getElementById("tacticalObjectivesContent");
+  if (!container) return;
+
+  let html = "";
+  for (let player = 1; player <= 2; player++) {
+    const hand = gameState.tacticalObjectives[player] || [];
+    const playerColor = player === 1 ? "var(--blue)" : "var(--red)";
+    const playerName = player === 1 ? "玩家一" : "玩家二";
+
+    html += `<div style="margin-bottom: 10px; padding: 6px; background: rgba(0,0,0,0.3); border-radius: 4px;">
+      <b style="color: ${playerColor};">🃏 ${playerName} 戰術目標</b><br>`;
+
+    if (hand.length === 0) {
+      html += `<small style="color: var(--muted);">無戰術目標卡</small>`;
+    } else {
+      hand.forEach(card => {
+        const typeIcon = card.type === "attack" ? "⚔️" : (card.type === "defense" ? "🛡️" : "📍");
+        html += `<div style="margin: 4px 0; padding: 4px 8px; background: rgba(255,255,255,0.1); border-radius: 4px; font-size: 10px;">
+          ${typeIcon} <b>${card.name}</b> <span style="color: var(--gold);">+${card.vp}VP</span><br>
+          <small style="color: var(--muted);">${card.condition}</small>
+          ${gameState.currentPlayer === player ? `
+            <button onclick="discardTacticalObjective(${player}, '${card.id}', true)"
+                    style="margin-left: 8px; padding: 1px 4px; font-size: 9px; background: rgba(200,50,50,0.5);
+                           border: none; border-radius: 3px; color: #fff; cursor: pointer;"
+                    title="消耗1CP換新卡">棄置(1CP)</button>
+          ` : ''}
+        </div>`;
+      });
+    }
+    html += `</div>`;
+  }
+
+  container.innerHTML = html;
+}
+
+// 回合開始時抽牌
+function drawTacticalObjectivesAtTurnStart(player) {
+  const hand = gameState.tacticalObjectives[player] || [];
+
+  // 第一回合抽2張，之後每回合補到2張
+  const targetCards = 2;
+  while (hand.length < targetCards && gameState.tacticalDeck.length > 0) {
+    drawTacticalObjective(player);
+  }
+}
+
+// ===== 完整地形效果系統 =====
+
+// 獲取地形效果
+function getTerrainEffects(x, y) {
+  const effects = {
+    cover: false,
+    dense: false,
+    obscuring: false,
+    difficultGround: false,
+    hazardous: false,
+    inspiring: false,
+    terrainTypes: []
+  };
+
+  for (const t of gameState.terrain) {
+    const inTerrain = x >= t.x - t.width/2 && x <= t.x + t.width/2 &&
+                      y >= t.y - t.height/2 && y <= t.y + t.height/2;
+    if (!inTerrain) continue;
+
+    const rules = TERRAIN_RULES[t.type];
+    if (!rules) continue;
+
+    effects.terrainTypes.push(t.type);
+    if (rules.effects.cover) effects.cover = true;
+    if (rules.effects.dense) effects.dense = true;
+    if (rules.effects.obscuring) effects.obscuring = true;
+    if (rules.effects.difficultGround) effects.difficultGround = true;
+    if (rules.effects.hazardous) effects.hazardous = true;
+    if (rules.effects.inspiring) effects.inspiring = true;
+  }
+
+  return effects;
+}
+
+// 檢查視線是否被遮擋
+function isLineOfSightBlocked(attacker, target) {
+  for (const t of gameState.terrain) {
+    const rules = TERRAIN_RULES[t.type];
+    if (!rules?.effects?.obscuring) continue;
+
+    // 簡化：檢查直線是否穿過遮蔽地形
+    if (lineIntersectsRect(
+      attacker.x, attacker.y, target.x, target.y,
+      t.x - t.width/2, t.y - t.height/2, t.width, t.height
+    )) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// 線段與矩形相交檢測
+function lineIntersectsRect(x1, y1, x2, y2, rx, ry, rw, rh) {
+  // 簡化檢測：檢查線段中點是否在矩形內
+  const midX = (x1 + x2) / 2;
+  const midY = (y1 + y2) / 2;
+  return midX >= rx && midX <= rx + rw && midY >= ry && midY <= ry + rh;
+}
+
+// 檢查是否穿過茂密地形（Dense）
+function checkDenseTerrainPenalty(attacker, target) {
+  for (const t of gameState.terrain) {
+    const rules = TERRAIN_RULES[t.type];
+    if (!rules?.effects?.dense) continue;
+
+    if (lineIntersectsRect(
+      attacker.x, attacker.y, target.x, target.y,
+      t.x - t.width/2, t.y - t.height/2, t.width, t.height
+    )) {
+      return -1; // -1 命中
+    }
+  }
+  return 0;
+}
+
+// 計算困難地形移動懲罰
+function getDifficultGroundPenalty(unit, targetX, targetY) {
+  let penalty = 0;
+  for (const t of gameState.terrain) {
+    const rules = TERRAIN_RULES[t.type];
+    if (!rules?.effects?.difficultGround) continue;
+
+    // 檢查目標位置是否在困難地形內
+    if (targetX >= t.x - t.width/2 && targetX <= t.x + t.width/2 &&
+        targetY >= t.y - t.height/2 && targetY <= t.y + t.height/2) {
+      penalty = Math.max(penalty, 2); // -2" 移動
+    }
+  }
+  return penalty;
+}
+
+// 進入危險地形檢測
+function checkHazardousTerrain(unit, targetX, targetY) {
+  for (const t of gameState.terrain) {
+    const rules = TERRAIN_RULES[t.type];
+    if (!rules?.effects?.hazardous) continue;
+
+    // 檢查是否進入危險地形
+    const wasInside = unit.x >= t.x - t.width/2 && unit.x <= t.x + t.width/2 &&
+                      unit.y >= t.y - t.height/2 && unit.y <= t.y + t.height/2;
+    const willBeInside = targetX >= t.x - t.width/2 && targetX <= t.x + t.width/2 &&
+                         targetY >= t.y - t.height/2 && targetY <= t.y + t.height/2;
+
+    if (!wasInside && willBeInside) {
+      // 進入危險地形，擲D6
+      const roll = rollD6();
+      if (roll === 1) {
+        const mortalWounds = rollD6() % 3 + 1; // D3
+        unit.currentHP = Math.max(0, unit.currentHP - mortalWounds);
+        log(`⚠️ ${unit.name} 進入危險地形！擲骰${roll}，受到${mortalWounds}致命傷`, "damage");
+        if (unit.currentHP <= 0) {
+          unit.alive = false;
+          log(`💀 ${unit.name} 被危險地形摧毀！`, "damage");
+        }
+        return true;
+      } else {
+        log(`${unit.name} 安全通過危險地形 (擲骰${roll})`, "info");
+      }
+    }
+  }
+  return false;
+}
+
+// 獲取鼓舞效果（神殿等）
+function getInspiringBonus(unit) {
+  for (const t of gameState.terrain) {
+    const rules = TERRAIN_RULES[t.type];
+    if (!rules?.effects?.inspiring) continue;
+
+    const dist = Math.hypot(unit.x - t.x, unit.y - t.y);
+    if (dist <= inchToPixels(6)) {
+      return 1; // +1 領導測試
+    }
+  }
+  return 0;
+}
+
+// 應用核心戰略效果
+function applyCoreStratagem(stratagemId, context) {
+  const strat = CORE_STRATAGEMS[stratagemId];
+  if (!strat) return {};
+
+  log(`🎴 使用核心戰略: ${strat.name}`, "phase");
+  return strat.apply(context);
 }
 
 // ===== Transport（運輸載具）系統 - 官方10版規則 =====
@@ -4597,21 +5561,34 @@ function loadUnitImage(unit) {
 // 根據 WH40K 官方底板尺寸規範
 // 底板尺寸換算: 25mm ≈ 1", 32mm ≈ 1.25", 40mm ≈ 1.6", 50mm ≈ 2",
 // ===== 小隊模型自動跟隨 =====
-// 當單位移動時，更新所有小隊模型的位置
+// 當單位移動時，更新所有小隊模型的位置（自然散開陣型）
 function updateSquadModelPositions(unit) {
   if (!unit.isSquad || !unit.models) return;
 
-  // 模型間距：根據模型數量調整，確保不重疊
   const baseModelSize = Math.max(12, getUnitBaseSize(unit) * 0.5);
-  const spacing = Math.max(inchToPixels(0.8), baseModelSize * 2.2);
-  const cols = Math.ceil(Math.sqrt(unit.modelCount));
-  const rows = Math.ceil(unit.modelCount / cols);
+  const spacing = Math.max(inchToPixels(0.6), baseModelSize * 2);
+  const count = unit.models.length;
+
+  // 使用種子確保同一單位的陣型一致
+  const seed = unit.id ? unit.id.charCodeAt(0) + unit.id.charCodeAt(unit.id.length - 1) : 0;
 
   unit.models.forEach((model, i) => {
-    const row = Math.floor(i / cols);
-    const col = i % cols;
-    model.x = unit.x + (col - (cols - 1) / 2) * spacing;
-    model.y = unit.y + (row - (rows - 1) / 2) * spacing;
+    if (i === 0) {
+      // 領隊在中心
+      model.x = unit.x;
+      model.y = unit.y;
+    } else {
+      // 其他模型以螺旋+隨機方式散開
+      const ring = Math.ceil(Math.sqrt(i)); // 第幾圈
+      const angleBase = (i * 137.5 + seed * 30) * Math.PI / 180; // 黃金角度散開
+      const radiusJitter = 0.8 + ((i * 7 + seed) % 10) / 25; // 0.8-1.2 隨機半徑
+      const radius = ring * spacing * 0.7 * radiusJitter;
+      const angleJitter = ((i * 13 + seed) % 20 - 10) * Math.PI / 180; // ±10度隨機
+      const angle = angleBase + angleJitter;
+
+      model.x = unit.x + Math.cos(angle) * radius;
+      model.y = unit.y + Math.sin(angle) * radius;
+    }
   });
 }
 
@@ -4621,13 +5598,12 @@ function getSquadSpreadRadius(unit) {
     return getUnitBaseSize(unit);
   }
   const baseModelSize = Math.max(12, getUnitBaseSize(unit) * 0.5);
-  const spacing = Math.max(inchToPixels(0.8), baseModelSize * 2.2);
-  const cols = Math.ceil(Math.sqrt(unit.modelCount));
-  const rows = Math.ceil(unit.modelCount / cols);
-  // 計算從中心到最遠模型的距離
-  const maxColOffset = (cols - 1) / 2 * spacing;
-  const maxRowOffset = (rows - 1) / 2 * spacing;
-  return Math.hypot(maxColOffset, maxRowOffset) + baseModelSize;
+  const spacing = Math.max(inchToPixels(0.6), baseModelSize * 2);
+  const count = unit.models.length;
+  // 螺旋陣型的最大半徑約為最外圈
+  const maxRing = Math.ceil(Math.sqrt(count));
+  const maxRadius = maxRing * spacing * 0.7 * 1.2; // 最大可能半徑
+  return maxRadius + baseModelSize;
 }
 
 //              60mm ≈ 2.4", 80mm ≈ 3.15", 100mm ≈ 4", 130mm ≈ 5"
@@ -4728,6 +5704,62 @@ function isPositionValid(x, y, baseSize, deployedUnits, minGap = 10, checkingUni
     if (dist < minDist) return false;
   }
   return true;
+}
+
+// ===== 大模型擠開小模型 =====
+// 當大型單位移動時，可以把較小的友軍單位推開
+function pushAsideSmallUnits(movingUnit, newX, newY) {
+  const movingSize = getUnitBaseSize(movingUnit);
+  const movingKeywords = movingUnit.keywords || [];
+
+  // 只有大型單位（Vehicle, Monster, Titanic）可以擠開其他單位
+  const isLargeUnit = movingKeywords.includes("Vehicle") ||
+                      movingKeywords.includes("Monster") ||
+                      movingKeywords.includes("Titanic") ||
+                      movingSize > inchToPixels(1.5);
+
+  if (!isLargeUnit) return;
+
+  const pushRange = movingSize + inchToPixels(0.5); // 擠開範圍
+
+  for (const other of gameState.units) {
+    if (other === movingUnit || !other.alive) continue;
+    if (other.player !== movingUnit.player) continue; // 只能擠開友軍
+
+    const otherSize = getUnitBaseSize(other);
+    const otherKeywords = other.keywords || [];
+
+    // 不能擠開同等或更大的單位
+    const otherIsLarge = otherKeywords.includes("Vehicle") ||
+                         otherKeywords.includes("Monster") ||
+                         otherKeywords.includes("Titanic");
+    if (otherIsLarge && otherSize >= movingSize * 0.8) continue;
+
+    const dist = Math.hypot(newX - other.x, newY - other.y);
+    const minDist = movingSize + otherSize + 5;
+
+    if (dist < minDist) {
+      // 計算推開方向和距離
+      const angle = Math.atan2(other.y - newY, other.x - newX);
+      const pushDist = minDist - dist + 10; // 多推一點確保不重疊
+
+      const pushedX = other.x + Math.cos(angle) * pushDist;
+      const pushedY = other.y + Math.sin(angle) * pushDist;
+
+      // 確保不推出地圖邊界
+      const margin = otherSize + 10;
+      const w = gameState.canvasWidth || 600;
+      const h = gameState.canvasHeight || 440;
+
+      other.x = Math.max(margin, Math.min(w - margin, pushedX));
+      other.y = Math.max(margin, Math.min(h - margin, pushedY));
+
+      // 更新小隊模型位置
+      updateSquadModelPositions(other);
+
+      log(`🚜 ${movingUnit.name} 擠開了 ${other.name}`, "info");
+    }
+  }
 }
 
 // 智能部署單位，避免重疊
@@ -5792,7 +6824,7 @@ async function aiMovementPhase() {
 }
 
 // ========== AI戰略評估系統 ==========
-// 評估當前遊戲局勢（VP、控制的目標、兵力對比）
+// 評估當前遊戲局勢（VP、控制的目標、兵力對比、任務得分潛力）
 function evaluateGameState(aiPlayer) {
   const enemyPlayer = aiPlayer === 1 ? 2 : 1;
   const myVP = gameState.vp[aiPlayer];
@@ -5814,9 +6846,20 @@ function evaluateGameState(aiPlayer) {
   const myPower = myUnits.reduce((sum, u) => sum + u.currentHP, 0);
   const enemyPower = enemyUnits.reduce((sum, u) => sum + u.currentHP, 0);
 
-  // 決定戰略態勢
+  // ===== 任務得分分析 =====
+  const missionAnalysis = analyzeMissionScoring(aiPlayer, enemyPlayer, myUnits, enemyUnits);
+
+  // 決定戰略態勢（根據任務調整）
   let strategy = "balanced";
 
+  // 根據主要任務調整基礎策略
+  if (gameState.primaryMission === "purge-the-foe") {
+    strategy = "aggressive"; // 殲滅任務：進攻為主
+  } else if (gameState.primaryMission === "take-and-hold") {
+    strategy = "objective_rush"; // 佔點任務：搶點為主
+  }
+
+  // 根據VP差距調整
   if (vpDiff >= 10 || (myObjectives >= 3 && vpDiff > 0)) {
     strategy = "defensive"; // 領先時防守
   } else if (vpDiff <= -10 || enemyObjectives >= 3) {
@@ -5832,6 +6875,11 @@ function evaluateGameState(aiPlayer) {
     strategy = "aggressive"; // 兵力優勢時進攻
   }
 
+  // 如果次要任務可以快速得分，優先執行
+  if (missionAnalysis.priorityTargets.length > 0) {
+    strategy = "mission_focus"; // 專注任務目標
+  }
+
   return {
     vpDiff,
     myVP,
@@ -5844,7 +6892,124 @@ function evaluateGameState(aiPlayer) {
     enemyPower,
     strategy,
     round: gameState.round,
-    maxRounds: 5
+    maxRounds: 5,
+    missionAnalysis  // 新增任務分析
+  };
+}
+
+// ===== AI 任務得分分析 =====
+function analyzeMissionScoring(aiPlayer, enemyPlayer, myUnits, enemyUnits) {
+  const mySecondary = gameState.secondaryMissions?.[aiPlayer] || [];
+  const primaryMission = gameState.primaryMission;
+  const priorityTargets = [];  // 優先攻擊目標
+  const priorityObjectives = [];  // 優先佔領目標
+  let expectedVP = 0;
+
+  // ===== 分析主要任務 =====
+  if (primaryMission === "take-and-hold") {
+    // 奪取固守：計算可得VP
+    const controlled = gameState.objectives.filter(o => o.control === aiPlayer).length;
+    const total = gameState.objectives.length;
+    if (controlled === 0) expectedVP += 0;
+    else if (controlled >= Math.ceil(total / 2) + 1) expectedVP += 15;
+    else if (controlled >= 2) expectedVP += 10;
+    else expectedVP += 5;
+
+    // 標記未控制的目標為優先
+    gameState.objectives.forEach(obj => {
+      if (obj.control !== aiPlayer) {
+        priorityObjectives.push({ obj, reason: "take-and-hold", value: 20 });
+      }
+    });
+  } else if (primaryMission === "purge-the-foe") {
+    // 殲滅敵軍：優先擊殺低血量目標
+    enemyUnits.forEach(enemy => {
+      if (enemy.currentHP <= 3) {
+        priorityTargets.push({ unit: enemy, reason: "purge-the-foe-killable", value: 30 });
+      }
+    });
+  } else if (primaryMission === "supply-drop") {
+    // 物資投放：優先目標加成
+    const priorityObj = gameState.objectives.find(o => o.priority);
+    if (priorityObj && priorityObj.control !== aiPlayer) {
+      priorityObjectives.push({ obj: priorityObj, reason: "supply-drop-priority", value: 40 });
+    }
+  }
+
+  // ===== 分析次要任務 =====
+  mySecondary.forEach(missionId => {
+    switch (missionId) {
+      case "assassination":
+        // 刺殺：找到敵方 Character
+        enemyUnits.forEach(enemy => {
+          if (enemy.keywords?.includes("Character")) {
+            const killable = enemy.currentHP <= 5;
+            priorityTargets.push({
+              unit: enemy,
+              reason: "assassination",
+              value: killable ? 50 : 30,
+              vpReward: 4
+            });
+          }
+        });
+        break;
+
+      case "bring-it-down":
+        // 擊落巨物：找到敵方 Monster/Vehicle
+        enemyUnits.forEach(enemy => {
+          if (enemy.keywords?.includes("Monster") || enemy.keywords?.includes("Vehicle")) {
+            const wounds = enemy.maxHP;
+            const vpPerKill = wounds >= 10 ? 3 : (wounds >= 5 ? 2 : 1);
+            priorityTargets.push({
+              unit: enemy,
+              reason: "bring-it-down",
+              value: 25 + vpPerKill * 10,
+              vpReward: vpPerKill
+            });
+          }
+        });
+        break;
+
+      case "no-prisoners":
+        // 不留俘虜：累積擊殺模型
+        const progress = gameState.missionProgress?.[aiPlayer]?.modelsKilledForPrisoners || 0;
+        const needed = progress < 10 ? 10 - progress : (progress < 20 ? 20 - progress : 0);
+        if (needed > 0) {
+          // 優先攻擊多模型單位
+          enemyUnits.forEach(enemy => {
+            if (enemy.isSquad && enemy.models?.length > 1) {
+              priorityTargets.push({
+                unit: enemy,
+                reason: "no-prisoners-squad",
+                value: 20 + enemy.models.length * 3,
+                vpReward: Math.min(2, Math.floor(enemy.models.length / 5))
+              });
+            }
+          });
+        }
+        break;
+
+      case "defend-stronghold":
+        // 堅守陣地：連續控制目標
+        gameState.objectives.forEach(obj => {
+          if (obj.control === aiPlayer) {
+            priorityObjectives.push({
+              obj,
+              reason: "defend-stronghold",
+              value: 25 + (obj.controlDuration || 0) * 15
+            });
+          }
+        });
+        break;
+    }
+  });
+
+  return {
+    primaryMission,
+    secondaryMissions: mySecondary,
+    priorityTargets: priorityTargets.sort((a, b) => b.value - a.value),
+    priorityObjectives: priorityObjectives.sort((a, b) => b.value - a.value),
+    expectedVP
   };
 }
 
@@ -5916,6 +7081,34 @@ function aiSelectMoveTarget(unit) {
   const isRanged = unit.weapons.ranged;
   const isCharacter = unit.keywords?.includes("Character");
   const isLowHP = unit.currentHP / unit.maxHP < 0.4;
+
+  // ===== 任務優先目標 =====
+  const missionAnalysis = gameEval.missionAnalysis;
+  if (missionAnalysis && aiDifficulty !== "easy") {
+    // 如果有高價值任務目標，近戰單位優先接近
+    if (isMeleeOnly && missionAnalysis.priorityTargets.length > 0) {
+      const bestTarget = missionAnalysis.priorityTargets[0];
+      if (bestTarget && bestTarget.value >= 30) {
+        const dist = Math.hypot(bestTarget.unit.x - unit.x, bestTarget.unit.y - unit.y);
+        if (dist <= inchToPixels(unit.stats.M + 12)) {  // 可在1-2回合內接近
+          log(`🎯 ${unit.name} 任務目標: 接近 ${bestTarget.unit.name} (${bestTarget.reason})`, "info");
+          return { x: bestTarget.unit.x, y: bestTarget.unit.y };
+        }
+      }
+    }
+
+    // 高OC單位優先前往任務優先目標點
+    if (isHighOC && missionAnalysis.priorityObjectives.length > 0) {
+      const bestObj = missionAnalysis.priorityObjectives[0];
+      if (bestObj && bestObj.value >= 25) {
+        const dist = pixelsToInch(Math.hypot(bestObj.obj.x - unit.x, bestObj.obj.y - unit.y));
+        if (dist <= unit.stats.M + 6) {
+          log(`🎯 ${unit.name} 任務目標: 前往目標點${bestObj.obj.id} (${bestObj.reason})`, "info");
+          return { x: bestObj.obj.x, y: bestObj.obj.y };
+        }
+      }
+    }
+  }
 
   // 顯示當前戰略
   if (myUnits.indexOf(unit) === 0) {
@@ -6155,6 +7348,7 @@ function aiSelectShootTarget(unit) {
   // ===== 策略性目標選擇（普通/困難）=====
   const objectives = gameState.objectives;
   const gameEval = evaluateGameState(unit.player);
+  const mySecondaryMissions = gameState.secondaryMissions?.[aiPlayer] || [];
 
   const scored = inRange.map(enemy => {
     let score = 0;
@@ -6169,6 +7363,31 @@ function aiSelectShootTarget(unit) {
     const hpRatio = enemy.currentHP / enemy.maxHP;
     score += (1 - hpRatio) * 40;
 
+    // ===== 任務感知目標選擇 =====
+    // 刺殺任務：優先攻擊 Character
+    if (mySecondaryMissions.includes("assassination") && enemy.keywords?.includes("Character")) {
+      score += 60;
+      if (potentialDamage >= enemy.currentHP) score += 40; // 可擊殺的角色更優先
+    }
+
+    // 擊落巨物任務：優先攻擊 Monster/Vehicle
+    if (mySecondaryMissions.includes("bring-it-down")) {
+      if (enemy.keywords?.includes("Monster") || enemy.keywords?.includes("Vehicle")) {
+        score += 50;
+        if (potentialDamage >= enemy.currentHP) score += 35;
+      }
+    }
+
+    // 不留俘虜任務：優先攻擊低血量可擊殺的目標
+    if (mySecondaryMissions.includes("no-prisoners")) {
+      if (potentialDamage >= enemy.currentHP) score += 30;
+    }
+
+    // 殲滅敵軍（主要任務）：更積極擊殺
+    if (gameState.primaryMission === "purge-the-foe") {
+      if (potentialDamage >= enemy.currentHP) score += 25;
+    }
+
     // 3. 目標附近的敵人（戰略價值高）- 根據戰略加權
     const objNear = objectives.find(o =>
       pixelsToInch(Math.hypot(enemy.x - o.x, enemy.y - o.y)) <= 3
@@ -6176,12 +7395,16 @@ function aiSelectShootTarget(unit) {
     if (objNear) {
       let objBonus = 35;
       // 如果敵人佔著我們需要的目標，優先清除
-      if (objNear.control !== unit.player) {
+      if (objNear.control !== aiPlayer) {
         objBonus += 30;
       }
       // 搶分策略時目標更重要
       if (gameEval.strategy === "objective_rush") {
         objBonus *= 1.5;
+      }
+      // 奪取固守任務：目標更重要
+      if (gameState.primaryMission === "take-and-hold") {
+        objBonus *= 1.3;
       }
       score += objBonus;
       // 高OC敵人在目標附近更危險
@@ -7703,10 +8926,10 @@ async function finishDeploymentAndStart() {
   // 部署完成後、第一回合開始前，有斥候能力的單位可以移動
   await performScoutMoves();
 
-  log("=== 開始第一回合 ===", "phase");
+  // 初始化任務系統（顯示選擇彈窗）
+  await initMissionSystem();
 
-  // 初始化任務系統
-  initMissionSystem();
+  log("=== 開始第一回合 ===", "phase");
 
   // 進入指揮階段
   gameState.phase = "command";
@@ -7847,6 +9070,23 @@ function gainCPAtCommandStart() {
   gameState.cp[2] += 1;
   log(`雙方各獲得 1 CP (玩家一: ${gameState.cp[1]}, 玩家二: ${gameState.cp[2]})`, "info");
   updateCPDisplay();
+
+  // 抽取戰術目標卡（當前玩家）
+  const currentPlayer = gameState.currentPlayer;
+  drawTacticalObjectivesAtTurnStart(currentPlayer);
+
+  // 重置任務進度追蹤
+  gameState.missionProgress[currentPlayer].killedThisRound = 0;
+  gameState.missionProgress[currentPlayer].killedCharacterThisRound = false;
+  gameState.missionProgress[currentPlayer].lostUnitsThisRound = 0;
+
+  // 記錄目標點的上一回合控制狀態（用於Storm等目標）
+  gameState.objectives.forEach(obj => {
+    obj.previousControl = obj.control;
+  });
+
+  // 更新戰術目標面板
+  updateTacticalObjectivesUI();
 }
 
 function spendCP(player, amount) {
@@ -7873,29 +9113,50 @@ function useCommandReroll() {
 
 // ========== 戰略面板系統 ==========
 function toggleStratagemPanel() {
-  const panel = document.getElementById("stratagemPanel");
-  const toggle = document.getElementById("stratagemToggle");
-  if (panel.style.display === "none") {
-    panel.style.display = "block";
-    toggle.textContent = "▲";
-    updateStratagemPanel();
-  } else {
-    panel.style.display = "none";
-    toggle.textContent = "▼";
-  }
+  // 使用新分頁系統
+  switchInfoPanel('stratagem');
 }
 
 // ===== 任務面板 =====
 function toggleMissionPanel() {
-  const panel = document.getElementById("missionPanel");
-  const toggle = document.getElementById("missionToggle");
-  if (panel.style.display === "none") {
-    panel.style.display = "block";
-    toggle.textContent = "▲";
-    updateMissionUI();
-  } else {
-    panel.style.display = "none";
-    toggle.textContent = "▼";
+  // 使用新分頁系統
+  switchInfoPanel('mission');
+}
+
+// ===== 戰術目標卡面板 =====
+function toggleTacticalPanel() {
+  // 使用新分頁系統
+  switchInfoPanel('tactical');
+}
+
+// ===== 新版分頁式面板切換 =====
+function switchInfoPanel(panelId) {
+  // 切換分頁按鈕狀態
+  document.querySelectorAll('.panel-tab').forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.panel === panelId);
+  });
+
+  // 切換面板內容
+  document.querySelectorAll('.panel-content').forEach(panel => {
+    panel.classList.remove('active');
+  });
+
+  const targetPanel = document.getElementById('panel' + panelId.charAt(0).toUpperCase() + panelId.slice(1));
+  if (targetPanel) {
+    targetPanel.classList.add('active');
+  }
+
+  // 更新對應面板內容
+  switch(panelId) {
+    case 'mission':
+      updateMissionUI();
+      break;
+    case 'stratagem':
+      updateStratagemPanel();
+      break;
+    case 'tactical':
+      updateTacticalObjectivesUI();
+      break;
   }
 }
 
@@ -7952,6 +9213,14 @@ function updateMissionUI() {
   }
 
   content.innerHTML = html;
+
+  // 更新頂部任務摘要
+  const missionSummary = document.getElementById("missionSummary");
+  const missionName = document.getElementById("missionName");
+  if (missionSummary && missionName && gameState.primaryMission && PRIMARY_MISSIONS[gameState.primaryMission]) {
+    missionSummary.style.display = "block";
+    missionName.textContent = PRIMARY_MISSIONS[gameState.primaryMission].name;
+  }
 }
 
 function updateStratagemPanel() {
@@ -8595,6 +9864,9 @@ function handleDragEnd(e) {
     const baseSize = getUnitBaseSize(unit);
     const otherUnits = gameState.units.filter(u => u !== unit && u.alive);
 
+    // 大模型可以擠開小模型
+    pushAsideSmallUnits(unit, snapped.x, snapped.y);
+
     if (isPositionValid(snapped.x, snapped.y, baseSize, otherUnits, 10, unit)) {
       unit.x = snapped.x;
       unit.y = snapped.y;
@@ -9132,6 +10404,9 @@ async function handleCanvasClick(x, y) {
     const dist = Math.hypot(snapped.x - unit.x, snapped.y - unit.y);
 
     if (dist <= maxDist) {
+      // 大模型可以擠開小模型
+      pushAsideSmallUnits(unit, snapped.x, snapped.y);
+
       // 檢查是否與其他單位重疊（考慮小隊展開範圍）
       const baseSize = getUnitBaseSize(unit);
       const otherUnits = gameState.units.filter(u => u !== unit && u.alive);
@@ -9175,6 +10450,9 @@ async function handleCanvasClick(x, y) {
     const dist = Math.hypot(snapped.x - unit.x, snapped.y - unit.y);
 
     if (dist <= maxDist) {
+      // 大模型可以擠開小模型
+      pushAsideSmallUnits(unit, snapped.x, snapped.y);
+
       // 檢查是否與其他單位重疊（考慮小隊展開範圍）
       const baseSize = getUnitBaseSize(unit);
       const otherUnits = gameState.units.filter(u => u !== unit && u.alive);
@@ -9228,6 +10506,9 @@ async function handleCanvasClick(x, y) {
     const dist = Math.hypot(snapped.x - unit.x, snapped.y - unit.y);
 
     if (dist <= maxDist) {
+      // 大模型可以擠開小模型
+      pushAsideSmallUnits(unit, snapped.x, snapped.y);
+
       // 檢查是否與其他單位重疊（考慮小隊展開範圍）
       const baseSize = getUnitBaseSize(unit);
       const otherUnits = gameState.units.filter(u => u !== unit && u.alive);
@@ -11307,6 +12588,21 @@ async function performAttack(attacker, target, weapon, mode) {
       hitModifier -= 1;
       log(`[Stealth] ${target.name} 隱匿 → 命中-1`, "info");
     }
+
+    // ===== Dense Terrain（茂密地形）規則 - 官方10版 =====
+    // 穿過茂密地形（如樹林）射擊時 -1 命中
+    const densePenalty = checkDenseTerrainPenalty(attacker, target);
+    if (densePenalty !== 0) {
+      hitModifier += densePenalty;
+      log(`[Dense] 穿過茂密地形 → 命中${densePenalty}`, "info");
+    }
+
+    // ===== Obscuring Terrain（遮蔽地形）規則 - 官方10版 =====
+    // 完全阻擋視線的地形無法射擊穿過
+    if (isLineOfSightBlocked(attacker, target)) {
+      log(`[Obscuring] 視線被建築物阻擋！無法射擊`, "miss");
+      return; // 無法攻擊
+    }
   }
 
   const hitNeed = Math.max(2, weapon.skill - hitModifier);
@@ -11629,9 +12925,22 @@ async function performAttack(attacker, target, weapon, mode) {
     });
 
     // 更新任務進度
-    if (gameState.missionProgress && gameState.missionProgress[attacker.player]) {
-      gameState.missionProgress[attacker.player].killedThisRound++;
-      gameState.missionProgress[attacker.player].modelsKilled += (target.isSquad ? target.modelCount : 1);
+    if (gameState.missionProgress) {
+      // 攻擊方的擊殺記錄
+      if (gameState.missionProgress[attacker.player]) {
+        gameState.missionProgress[attacker.player].killedThisRound++;
+        gameState.missionProgress[attacker.player].modelsKilled += (target.isSquad ? target.modelCount : 1);
+
+        // 追蹤擊殺Character（用於戰術目標）
+        if (target.keywords?.includes("Character")) {
+          gameState.missionProgress[attacker.player].killedCharacterThisRound = true;
+        }
+      }
+
+      // 防守方的損失記錄
+      if (gameState.missionProgress[target.player]) {
+        gameState.missionProgress[target.player].lostUnitsThisRound++;
+      }
     }
   }
 
@@ -11763,16 +13072,13 @@ function getWoundRollExplanation(S, T) {
   return `S${S} < T${T} → 5+`;
 }
 
-// ========== 掩護檢測 ==========
+// ========== 掩護檢測 (使用完整地形規則) ==========
 function checkCover(unit) {
-  unit.inCover = false;
-  for (const t of gameState.terrain) {
-    if (unit.x >= t.x - t.width/2 && unit.x <= t.x + t.width/2 &&
-        unit.y >= t.y - t.height/2 && unit.y <= t.y + t.height/2) {
-      unit.inCover = true;
-      break;
-    }
-  }
+  const effects = getTerrainEffects(unit.x, unit.y);
+  unit.inCover = effects.cover;
+
+  // 儲存地形效果供其他系統使用
+  unit.terrainEffects = effects;
 }
 
 // ========== 接戰範圍檢測 (官方10版規則) ==========
@@ -12091,6 +13397,8 @@ function computeObjectiveControl() {
   const OBJ_RANGE = inchToPixels(3);
   let changes = [];
 
+  console.warn('[computeObjectiveControl] 目標數量:', gameState.objectives.length, '範圍(px):', OBJ_RANGE);
+
   for (const obj of gameState.objectives) {
     let oc1 = 0, oc2 = 0;
     let hasObjSec1 = false, hasObjSec2 = false;  // 是否有 Objective Secured 單位
@@ -12117,6 +13425,7 @@ function computeObjectiveControl() {
     }
 
     const prevControl = obj.control;
+    console.warn(`[目標${obj.id}] 位置:(${Math.round(obj.x)},${Math.round(obj.y)}) P1-OC:${oc1} P2-OC:${oc2} 單位:`, units1, units2);
 
     // 決定控制權（含 Objective Secured 規則）
     if (oc1 > oc2) {
@@ -12182,10 +13491,15 @@ function computeObjectiveControl() {
 function scorePrimary(player) {
   // 使用主要任務的計分規則
   if (gameState.primaryMission && PRIMARY_MISSIONS[gameState.primaryMission]) {
-    return PRIMARY_MISSIONS[gameState.primaryMission].scoring(player);
+    const score = PRIMARY_MISSIONS[gameState.primaryMission].scoring(player);
+    console.warn(`[scorePrimary] 玩家${player} 任務:${gameState.primaryMission} 得分:${score}`);
+    return score;
   }
   // 預設計分
-  return Math.min(15, gameState.objectives.filter(o => o.control === player).length * 5);
+  const controlled = gameState.objectives.filter(o => o.control === player).length;
+  const score = Math.min(15, controlled * 5);
+  console.warn(`[scorePrimary] 玩家${player} 控制目標:${controlled} 得分:${score}`);
+  return score;
 }
 
 async function nextPhase() {
@@ -12268,6 +13582,10 @@ function endTurn() {
   // 重置指揮重擲
   gameState.pendingReroll = null;
 
+  // 回合結束前檢查戰術目標完成
+  const endingPlayer = gameState.currentPlayer;
+  checkTacticalObjectives(endingPlayer);
+
   // 切換玩家
   gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
 
@@ -12278,10 +13596,18 @@ function endTurn() {
     checkSecondaryMissions(1, { type: "endRound", round: gameState.round });
     checkSecondaryMissions(2, { type: "endRound", round: gameState.round });
 
+    // 檢查雙方戰術目標
+    checkTacticalObjectives(1);
+    checkTacticalObjectives(2);
+
     // 重置每回合計數器
     if (gameState.missionProgress) {
       gameState.missionProgress[1].killedThisRound = 0;
       gameState.missionProgress[2].killedThisRound = 0;
+      gameState.missionProgress[1].killedCharacterThisRound = false;
+      gameState.missionProgress[2].killedCharacterThisRound = false;
+      gameState.missionProgress[1].lostUnitsThisRound = 0;
+      gameState.missionProgress[2].lostUnitsThisRound = 0;
     }
 
     gameState.round++;
@@ -12380,9 +13706,9 @@ function updatePhaseDisplay() {
   });
   updateActionButtons();
 
-  // 更新戰略面板（如果已展開）
-  const stratagemPanel = document.getElementById("stratagemPanel");
-  if (stratagemPanel && stratagemPanel.style.display !== "none") {
+  // 更新戰略面板（如果當前顯示）
+  const stratagemPanel = document.getElementById("panelStratagem");
+  if (stratagemPanel && stratagemPanel.classList.contains("active")) {
     updateStratagemPanel();
   }
 }
@@ -12391,6 +13717,17 @@ function updateActionButtons() {
   const phase = gameState.phase;
   const unit = gameState.selectedUnit;
   const isMyUnit = unit && unit.player === gameState.currentPlayer;
+
+  // 根據階段顯示/隱藏動作群組
+  const movementActions = document.getElementById("movementActions");
+  const shootingActions = document.getElementById("shootingActions");
+  const chargeActions = document.getElementById("chargeActions");
+  const fightActions = document.getElementById("fightActions");
+
+  if (movementActions) movementActions.style.display = (phase === "movement") ? "inline-flex" : "none";
+  if (shootingActions) shootingActions.style.display = (phase === "shooting") ? "inline-flex" : "none";
+  if (chargeActions) chargeActions.style.display = (phase === "charge") ? "inline-flex" : "none";
+  if (fightActions) fightActions.style.display = (phase === "fight") ? "inline-flex" : "none";
 
   document.getElementById("btnMove").disabled = !(phase === "movement" && isMyUnit && !unit?.hasMoved && !unit?.inReserve && !unit?.isInEngagement);
   // 急行按鈕：移動階段、未移動、未接戰
@@ -12664,6 +14001,12 @@ function clearLog() {
 // 切換戰鬥日誌顯示
 let combatLogVisible = true;
 function toggleCombatLog() {
+  // 使用新分頁系統
+  switchInfoPanel('log');
+}
+
+// 舊版toggle備用（不再使用）
+function _oldToggleCombatLog() {
   const container = document.getElementById("combatLogContainer");
   const toggle = document.getElementById("combatLogToggle");
   if (!container) return;
@@ -12671,7 +14014,7 @@ function toggleCombatLog() {
   combatLogVisible = !combatLogVisible;
   if (combatLogVisible) {
     container.style.display = "block";
-    toggle.textContent = "▼";
+    if (toggle) toggle.textContent = "▼";
   } else {
     container.style.display = "none";
     toggle.textContent = "▶";
