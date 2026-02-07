@@ -520,16 +520,37 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
 
 .setup-header {
   text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: 20px;
 }
 .setup-header h1 {
-  font-size: 32px;
+  font-size: 28px;
   color: var(--gold);
   text-shadow: 0 0 20px rgba(251,191,36,0.3);
+  margin-bottom: 4px;
 }
 .setup-header p {
   color: var(--muted);
-  margin-top: 8px;
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+/* 設定區塊共用樣式 */
+.setup-section {
+  max-width: 1400px;
+  margin: 0 auto 16px;
+  padding: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.setup-section-title {
+  font-size: 13px;
+  font-weight: bold;
+  color: var(--gold);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .setup-container {
@@ -537,14 +558,14 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
   margin: 0 auto;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  gap: 16px;
 }
 
 .army-builder {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 16px;
+  border-radius: 10px;
+  padding: 14px;
 }
 .army-header {
   display: flex;
@@ -733,58 +754,50 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
   <div class="setup-header">
     <h1>⚔️ 戰鎚 40,000 ⚔️</h1>
     <p>第十版核心規則 - 軍表配置</p>
-    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.4.4 (2026-02-07)</p>
+    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.6.0 (2026-02-08)</p>
   </div>
 
-  <!-- 連線對戰選項 -->
-  <div style="max-width: 600px; margin: 0 auto 20px; padding: 15px; background: rgba(59,130,246,0.15); border: 1px solid var(--blue); border-radius: 10px;">
-    <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; justify-content: center; margin-bottom: 10px;">
-      <span style="font-weight: bold; color: var(--blue); font-size: 16px;">🌐 遊戲模式</span>
-      <select id="gameMode" onchange="switchGameMode(this.value)" style="padding: 8px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; color: var(--txt); font-size: 14px;">
-        <option value="local">本地對戰 / AI</option>
-        <option value="online">線上對戰</option>
-      </select>
-    </div>
-
-    <!-- 線上對戰面板 -->
-    <div id="onlinePanel" style="display: none; margin-top: 15px; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 8px;">
-      <div id="roomLobby">
-        <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-          <button onclick="createRoom()" style="padding: 12px 24px; background: linear-gradient(135deg, #22c55e, #16a34a); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 14px;">
-            ➕ 建立房間
-          </button>
-          <div style="display: flex; gap: 5px;">
-            <input type="text" id="joinRoomCode" placeholder="輸入房間碼" maxlength="6" style="width: 120px; padding: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; color: var(--txt); text-align: center; font-size: 16px; text-transform: uppercase;">
-            <button onclick="joinRoom()" style="padding: 12px 24px; background: linear-gradient(135deg, #3b82f6, #2563eb); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 14px;">
-              🚪 加入
-            </button>
-          </div>
+  <!-- 遊戲設定區 -->
+  <div class="setup-section" style="max-width: 800px;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+      <!-- 遊戲模式 -->
+      <div style="padding: 12px; background: rgba(59,130,246,0.1); border: 1px solid var(--blue); border-radius: 8px;">
+        <div class="setup-section-title" style="color: var(--blue);">🌐 遊戲模式</div>
+        <select id="gameMode" onchange="switchGameMode(this.value)" style="width: 100%; padding: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; color: var(--txt); font-size: 13px;">
+          <option value="local">本地對戰 / AI</option>
+          <option value="online">線上對戰</option>
+        </select>
+      </div>
+      <!-- 點數上限 -->
+      <div style="padding: 12px; background: rgba(251,191,36,0.1); border: 1px solid var(--gold); border-radius: 8px;">
+        <div class="setup-section-title">⚡ 點數上限</div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <input type="range" id="maxPointsSlider" min="500" max="3000" step="250" value="1000" onchange="updateMaxPoints(this.value)" style="flex: 1;">
+          <span style="font-size: 18px; font-weight: bold; color: var(--gold); min-width: 50px;" id="maxPointsDisplay">1000</span>
+          <select id="maxPointsPreset" onchange="setPointsPreset(this.value)" style="padding: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; color: var(--txt); font-size: 11px;">
+            <option value="500">500</option>
+            <option value="1000" selected>1000</option>
+            <option value="2000">2000</option>
+            <option value="3000">3000</option>
+          </select>
         </div>
       </div>
-
-      <!-- 房間資訊（建立/加入後顯示） -->
-      <div id="roomInfo" style="display: none; text-align: center;">
-        <div style="font-size: 14px; color: var(--muted); margin-bottom: 10px;">房間碼</div>
-        <div id="roomCodeDisplay" style="font-size: 32px; font-weight: bold; color: var(--gold); letter-spacing: 8px; margin-bottom: 10px;"></div>
-        <div id="roomStatus" style="font-size: 14px; color: var(--green);">等待對手加入...</div>
-        <button onclick="leaveRoom()" style="margin-top: 15px; padding: 8px 16px; background: rgba(239,68,68,0.2); border: 1px solid var(--red); border-radius: 6px; color: var(--red); cursor: pointer;">離開房間</button>
-      </div>
     </div>
-  </div>
-
-  <!-- 點數上限設定 -->
-  <div style="max-width: 600px; margin: 0 auto 20px; padding: 15px; background: rgba(251,191,36,0.1); border: 1px solid var(--gold); border-radius: 10px;">
-    <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; justify-content: center;">
-      <label style="font-weight: bold; color: var(--gold);">⚡ 點數上限:</label>
-      <input type="range" id="maxPointsSlider" min="500" max="3000" step="250" value="1000"
-             onchange="updateMaxPoints(this.value)" style="flex: 1; min-width: 150px; max-width: 300px;">
-      <span style="font-size: 20px; font-weight: bold; color: var(--gold); min-width: 80px;" id="maxPointsDisplay">1000</span>
-      <select id="maxPointsPreset" onchange="setPointsPreset(this.value)" style="padding: 6px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; color: var(--txt);">
-        <option value="500">Combat Patrol (500)</option>
-        <option value="1000" selected>Incursion (1000)</option>
-        <option value="2000">Strike Force (2000)</option>
-        <option value="3000">Onslaught (3000)</option>
-      </select>
+    <!-- 線上對戰面板 -->
+    <div id="onlinePanel" style="display: none; margin-top: 12px; padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px;">
+      <div id="roomLobby">
+        <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+          <button onclick="createRoom()" style="padding: 10px 20px; background: linear-gradient(135deg, #22c55e, #16a34a); border: none; border-radius: 6px; color: white; font-weight: bold; cursor: pointer; font-size: 13px;">➕ 建立房間</button>
+          <input type="text" id="joinRoomCode" placeholder="房間碼" maxlength="6" style="width: 100px; padding: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; color: var(--txt); text-align: center; font-size: 14px; text-transform: uppercase;">
+          <button onclick="joinRoom()" style="padding: 10px 20px; background: linear-gradient(135deg, #3b82f6, #2563eb); border: none; border-radius: 6px; color: white; font-weight: bold; cursor: pointer; font-size: 13px;">🚪 加入</button>
+        </div>
+      </div>
+      <div id="roomInfo" style="display: none; text-align: center; margin-top: 10px;">
+        <div style="font-size: 12px; color: var(--muted);">房間碼</div>
+        <div id="roomCodeDisplay" style="font-size: 28px; font-weight: bold; color: var(--gold); letter-spacing: 6px;"></div>
+        <div id="roomStatus" style="font-size: 13px; color: var(--green); margin-top: 4px;">等待對手加入...</div>
+        <button onclick="leaveRoom()" style="margin-top: 10px; padding: 6px 12px; background: rgba(239,68,68,0.2); border: 1px solid var(--red); border-radius: 4px; color: var(--red); cursor: pointer; font-size: 12px;">離開房間</button>
+      </div>
     </div>
   </div>
 
@@ -793,62 +806,52 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
     <div class="army-builder" id="army1Builder">
       <div class="army-header">
         <span class="army-title player1">👤 <span id="p1ModeLabel">玩家一</span></span>
-        <span class="points-display">點數: <span id="p1Points">0</span> / <span class="max-pts">1000</span></span>
+        <span class="points-display"><span id="p1Points">0</span>/<span class="max-pts">1000</span>pts</span>
       </div>
 
-      <div class="ai-toggle" style="margin-bottom: 12px; padding: 10px; background: rgba(59,130,246,0.1); border: 1px solid var(--blue); border-radius: 8px;">
-        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-          <input type="checkbox" id="ai1ModeToggle" onchange="toggleAI1Mode()" style="width: 18px; height: 18px;">
-          <span style="font-size: 14px; font-weight: bold; color: var(--blue);">🤖 AI控制</span>
+      <!-- AI + 陣營設定 (單行) -->
+      <div style="display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; align-items: center;">
+        <label style="display: flex; align-items: center; gap: 4px; padding: 6px 10px; background: rgba(59,130,246,0.15); border: 1px solid var(--blue); border-radius: 6px; cursor: pointer; font-size: 12px;">
+          <input type="checkbox" id="ai1ModeToggle" onchange="toggleAI1Mode()" style="width: 14px; height: 14px;">
+          <span style="color: var(--blue);">🤖 AI</span>
         </label>
-        <div id="ai1DifficultyWrapper" style="margin-top: 8px; display: none;">
-          <label style="font-size: 11px; color: var(--muted);">AI-1難度：</label>
-          <select id="ai1Difficulty" style="padding: 4px 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--line); border-radius: 4px; color: var(--txt); font-size: 12px;">
-            <option value="easy">簡單 - 隨機行動</option>
-            <option value="normal" selected>普通 - 基本策略</option>
-            <option value="hard">困難 - 進階策略</option>
-          </select>
+        <select id="ai1Difficulty" style="padding: 6px 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--line); border-radius: 4px; color: var(--txt); font-size: 11px; display: none;">
+          <option value="easy">簡單</option>
+          <option value="normal" selected>普通</option>
+          <option value="hard">困難</option>
+        </select>
+        <select id="p1Faction" onchange="updateAvailableUnits(1); updateDetachmentOptions(1);" style="flex: 1; padding: 6px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; color: var(--txt); font-size: 12px;">
+          <option value="space-marines">星際戰士</option>
+          <option value="necrons">死靈</option>
+          <option value="tyranids">泰倫蟲族</option>
+          <option value="chaos">混沌戰士</option>
+          <option value="orks">歐克蠻人</option>
+        </select>
+      </div>
+
+      <!-- 種族規則 -->
+      <div style="margin-bottom: 10px;">
+        <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 4px;">
+          <span style="font-size: 11px; color: var(--gold);">種族規則:</span>
+          <select id="p1Detachment" onchange="selectDetachment(1)" style="flex: 1; padding: 5px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; color: var(--txt); font-size: 11px;"></select>
         </div>
+        <div id="p1DetachmentDesc" style="font-size: 10px; color: var(--muted); padding: 6px; background: rgba(0,0,0,0.2); border-radius: 4px; line-height: 1.4;"></div>
       </div>
 
-      <div class="faction-select">
-        <label>選擇陣營</label>
-        <select id="p1Faction" onchange="updateAvailableUnits(1); updateDetachmentOptions(1);">
-          <option value="space-marines">星際戰士 Adeptus Astartes</option>
-          <option value="necrons">死靈 Necrons</option>
-          <option value="tyranids">泰倫蟲族 Tyranids</option>
-          <option value="chaos">混沌戰士 Chaos Space Marines</option>
-          <option value="orks">歐克蠻人 Orks</option>
-        </select>
-      </div>
-
-      <div class="faction-select">
-        <label>種族規則 Detachment</label>
-        <select id="p1Detachment" onchange="selectDetachment(1)">
-        </select>
-        <div id="p1DetachmentDesc" style="font-size: 11px; color: var(--muted); margin-top: 6px; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 4px;"></div>
-      </div>
-
-      <!-- Meta 自動配置按鈕 -->
-      <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
-        <button onclick="autoConfigMeta(1)" style="flex: 1; padding: 10px; background: linear-gradient(135deg, #667eea, #764ba2); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 13px;">
-          🏆 Meta配置
-        </button>
-        <button onclick="autoConfigBalanced(1)" style="flex: 1; padding: 10px; background: linear-gradient(135deg, #11998e, #38ef7d); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 13px;">
-          ⚖️ 均衡配置
-        </button>
-        <button onclick="clearRoster(1)" style="padding: 10px 15px; background: rgba(239,68,68,0.2); border: 1px solid var(--red); border-radius: 8px; color: var(--red); font-weight: bold; cursor: pointer; font-size: 13px;">
-          🗑️ 清空
-        </button>
+      <!-- 快速配置按鈕 -->
+      <div style="display: flex; gap: 6px; margin-bottom: 10px;">
+        <button onclick="autoConfigMeta(1)" style="flex: 1; padding: 8px; background: linear-gradient(135deg, #667eea, #764ba2); border: none; border-radius: 6px; color: white; font-weight: bold; cursor: pointer; font-size: 11px;">🏆 Meta</button>
+        <button onclick="autoConfigBalanced(1)" style="flex: 1; padding: 8px; background: linear-gradient(135deg, #11998e, #38ef7d); border: none; border-radius: 6px; color: white; font-weight: bold; cursor: pointer; font-size: 11px;">⚖️ 均衡</button>
+        <button onclick="clearRoster(1)" style="padding: 8px 12px; background: rgba(239,68,68,0.2); border: 1px solid var(--red); border-radius: 6px; color: var(--red); cursor: pointer; font-size: 11px;">🗑️</button>
       </div>
 
       <div class="available-units">
-        <h4>可用單位（點擊添加）</h4>
+        <h4 style="font-size: 11px; margin-bottom: 6px;">可用單位</h4>
         <div class="unit-grid" id="p1UnitGrid"></div>
       </div>
 
       <div class="selected-roster">
-        <h4>已選單位</h4>
+        <h4 style="font-size: 11px; margin-bottom: 6px;">已選單位</h4>
         <div id="p1Roster"></div>
       </div>
     </div>
@@ -857,129 +860,108 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
     <div class="army-builder" id="army2Builder">
       <div class="army-header">
         <span class="army-title player2">🤖 <span id="p2ModeLabel">玩家二</span></span>
-        <span class="points-display">點數: <span id="p2Points">0</span> / <span class="max-pts">1000</span></span>
+        <span class="points-display"><span id="p2Points">0</span>/<span class="max-pts">1000</span>pts</span>
       </div>
 
-      <div class="ai-toggle" style="margin-bottom: 12px; padding: 10px; background: rgba(220,38,38,0.1); border: 1px solid var(--red); border-radius: 8px;">
-        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-          <input type="checkbox" id="aiModeToggle" onchange="toggleAIMode()" checked style="width: 18px; height: 18px;">
-          <span style="font-size: 14px; font-weight: bold; color: var(--red);">🤖 AI對手模式</span>
+      <!-- AI + 陣營設定 (單行) -->
+      <div style="display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; align-items: center;">
+        <label style="display: flex; align-items: center; gap: 4px; padding: 6px 10px; background: rgba(239,68,68,0.15); border: 1px solid var(--red); border-radius: 6px; cursor: pointer; font-size: 12px;">
+          <input type="checkbox" id="aiModeToggle" onchange="toggleAIMode()" checked style="width: 14px; height: 14px;">
+          <span style="color: var(--red);">🤖 AI</span>
         </label>
-        <div style="margin-top: 8px;">
-          <label style="font-size: 11px; color: var(--muted);">AI難度：</label>
-          <select id="aiDifficulty" style="padding: 4px 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--line); border-radius: 4px; color: var(--txt); font-size: 12px;">
-            <option value="easy">簡單 - 隨機行動</option>
-            <option value="normal" selected>普通 - 基本策略</option>
-            <option value="hard">困難 - 進階策略</option>
-          </select>
-        </div>
-        <div style="margin-top: 8px;">
-          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 11px; color: var(--muted);">
-            <input type="checkbox" id="diceAnimToggle" checked style="width: 14px; height: 14px;">
-            <span>骰子動畫（關閉可加速AI對戰）</span>
-          </label>
-        </div>
-      </div>
-
-      <div class="faction-select">
-        <label>選擇陣營</label>
-        <select id="p2Faction" onchange="updateAvailableUnits(2); updateDetachmentOptions(2);">
-          <option value="necrons">死靈 Necrons</option>
-          <option value="tyranids">泰倫蟲族 Tyranids</option>
-          <option value="chaos">混沌戰士 Chaos Space Marines</option>
-          <option value="orks">歐克蠻人 Orks</option>
-          <option value="space-marines">星際戰士 Adeptus Astartes</option>
+        <select id="aiDifficulty" style="padding: 6px 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--line); border-radius: 4px; color: var(--txt); font-size: 11px;">
+          <option value="easy">簡單</option>
+          <option value="normal" selected>普通</option>
+          <option value="hard">困難</option>
+        </select>
+        <select id="p2Faction" onchange="updateAvailableUnits(2); updateDetachmentOptions(2);" style="flex: 1; padding: 6px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; color: var(--txt); font-size: 12px;">
+          <option value="necrons">死靈</option>
+          <option value="tyranids">泰倫蟲族</option>
+          <option value="chaos">混沌戰士</option>
+          <option value="orks">歐克蠻人</option>
+          <option value="space-marines">星際戰士</option>
         </select>
       </div>
 
-      <div class="faction-select">
-        <label>種族規則 Detachment</label>
-        <select id="p2Detachment" onchange="selectDetachment(2)">
-        </select>
-        <div id="p2DetachmentDesc" style="font-size: 11px; color: var(--muted); margin-top: 6px; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 4px;"></div>
+      <!-- 骰子動畫開關 -->
+      <label style="display: flex; align-items: center; gap: 6px; margin-bottom: 10px; padding: 6px 10px; background: rgba(0,0,0,0.2); border-radius: 6px; cursor: pointer; font-size: 11px; color: var(--muted);">
+        <input type="checkbox" id="diceAnimToggle" checked style="width: 14px; height: 14px;">
+        <span>🎲 骰子動畫（關閉可加速）</span>
+      </label>
+
+      <!-- 種族規則 -->
+      <div style="margin-bottom: 10px;">
+        <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 4px;">
+          <span style="font-size: 11px; color: var(--gold);">種族規則:</span>
+          <select id="p2Detachment" onchange="selectDetachment(2)" style="flex: 1; padding: 5px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; color: var(--txt); font-size: 11px;"></select>
+        </div>
+        <div id="p2DetachmentDesc" style="font-size: 10px; color: var(--muted); padding: 6px; background: rgba(0,0,0,0.2); border-radius: 4px; line-height: 1.4;"></div>
       </div>
 
-      <!-- Meta 自動配置按鈕 -->
-      <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
-        <button onclick="autoConfigMeta(2)" style="flex: 1; padding: 10px; background: linear-gradient(135deg, #667eea, #764ba2); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 13px;">
-          🏆 Meta配置
-        </button>
-        <button onclick="autoConfigBalanced(2)" style="flex: 1; padding: 10px; background: linear-gradient(135deg, #11998e, #38ef7d); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 13px;">
-          ⚖️ 均衡配置
-        </button>
-        <button onclick="clearRoster(2)" style="padding: 10px 15px; background: rgba(239,68,68,0.2); border: 1px solid var(--red); border-radius: 8px; color: var(--red); font-weight: bold; cursor: pointer; font-size: 13px;">
-          🗑️ 清空
-        </button>
+      <!-- 快速配置按鈕 -->
+      <div style="display: flex; gap: 6px; margin-bottom: 10px;">
+        <button onclick="autoConfigMeta(2)" style="flex: 1; padding: 8px; background: linear-gradient(135deg, #667eea, #764ba2); border: none; border-radius: 6px; color: white; font-weight: bold; cursor: pointer; font-size: 11px;">🏆 Meta</button>
+        <button onclick="autoConfigBalanced(2)" style="flex: 1; padding: 8px; background: linear-gradient(135deg, #11998e, #38ef7d); border: none; border-radius: 6px; color: white; font-weight: bold; cursor: pointer; font-size: 11px;">⚖️ 均衡</button>
+        <button onclick="clearRoster(2)" style="padding: 8px 12px; background: rgba(239,68,68,0.2); border: 1px solid var(--red); border-radius: 6px; color: var(--red); cursor: pointer; font-size: 11px;">🗑️</button>
       </div>
 
       <div class="available-units">
-        <h4>可用單位（點擊添加）</h4>
+        <h4 style="font-size: 11px; margin-bottom: 6px;">可用單位</h4>
         <div class="unit-grid" id="p2UnitGrid"></div>
       </div>
 
       <div class="selected-roster">
-        <h4>已選單位</h4>
+        <h4 style="font-size: 11px; margin-bottom: 6px;">已選單位</h4>
         <div id="p2Roster"></div>
       </div>
     </div>
   </div>
 
   <!-- 戰場設定 -->
-  <div class="battlefield-settings" style="margin-top: 20px; padding: 16px; background: rgba(0,0,0,0.3); border: 1px solid var(--line); border-radius: 8px;">
-    <h3 style="color: var(--gold); margin-bottom: 12px; font-size: 14px;">🗺️ 戰場設定</h3>
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-      <div class="faction-select">
-        <label>戰場尺寸</label>
-        <select id="battlefieldSize" onchange="updateBattlefieldPreview()">
-          <option value="combat-patrol">Combat Patrol - 44" x 30" (小型)</option>
-          <option value="incursion">Incursion - 44" x 30"</option>
-          <option value="strike-force" selected>Strike Force - 60" x 44" (標準)</option>
-          <option value="onslaught">Onslaught - 90" x 44" (大型)</option>
+  <div class="setup-section">
+    <div class="setup-section-title">🗺️ 戰場設定</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; align-items: start;">
+      <div>
+        <label style="font-size: 11px; color: var(--muted); display: block; margin-bottom: 4px;">戰場尺寸</label>
+        <select id="battlefieldSize" onchange="updateBattlefieldPreview()" style="width: 100%; padding: 6px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; color: var(--txt); font-size: 11px;">
+          <option value="combat-patrol">44"×30" 小型</option>
+          <option value="incursion">44"×30"</option>
+          <option value="strike-force" selected>60"×44" 標準</option>
+          <option value="onslaught">90"×44" 大型</option>
         </select>
-        <div id="sizeDesc" style="font-size: 11px; color: var(--muted); margin-top: 4px;">標準對戰尺寸，適合 1000-2000 點</div>
       </div>
-      <div class="faction-select">
-        <label>地圖場景</label>
-        <select id="mapScenario" onchange="updateBattlefieldPreview()">
-          <option value="standard">標準戰場 - 均衡地形</option>
-          <option value="city">城市廢墟 - 大量掩體</option>
-          <option value="forest">密林地帶 - 樹林為主</option>
-          <option value="wasteland">荒野戰場 - 開放平原</option>
-          <option value="fortress">要塞攻防 - 防禦工事</option>
+      <div>
+        <label style="font-size: 11px; color: var(--muted); display: block; margin-bottom: 4px;">地圖場景</label>
+        <select id="mapScenario" onchange="updateBattlefieldPreview()" style="width: 100%; padding: 6px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; color: var(--txt); font-size: 11px;">
+          <option value="standard">標準戰場</option>
+          <option value="city">城市廢墟</option>
+          <option value="forest">密林地帶</option>
+          <option value="wasteland">荒野戰場</option>
+          <option value="fortress">要塞攻防</option>
           <option value="random">隨機生成</option>
         </select>
-        <div id="mapDesc" style="font-size: 11px; color: var(--muted); margin-top: 4px;">均衡配置的標準地形</div>
+      </div>
+      <div id="battlefieldPreview" style="text-align: center;">
+        <canvas id="previewCanvas" width="180" height="120" style="border: 1px solid var(--line); border-radius: 4px;"></canvas>
       </div>
     </div>
-    <div id="battlefieldPreview" style="margin-top: 12px; padding: 10px; background: rgba(0,0,0,0.4); border-radius: 6px; text-align: center;">
-      <canvas id="previewCanvas" width="300" height="200" style="border: 1px solid var(--line); border-radius: 4px;"></canvas>
-      <div style="font-size: 11px; color: var(--muted); margin-top: 6px;">預覽 (比例縮小)</div>
+    <!-- 地形規則摘要 -->
+    <div style="margin-top: 10px; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 6px; font-size: 10px; color: var(--muted);">
+      <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
+        <span><span style="display: inline-block; width: 10px; height: 10px; background: #4a5568; border-radius: 2px; vertical-align: middle;"></span> 廢墟</span>
+        <span><span style="display: inline-block; width: 10px; height: 10px; background: #2d5a27; border-radius: 2px; vertical-align: middle;"></span> 樹林</span>
+        <span><span style="display: inline-block; width: 10px; height: 10px; background: #78716c; border-radius: 2px; vertical-align: middle;"></span> 障礙</span>
+        <span><span style="display: inline-block; width: 10px; height: 10px; background: #854d0e; border-radius: 2px; vertical-align: middle;"></span> 彈坑</span>
+        <span><span style="display: inline-block; width: 10px; height: 10px; background: #1e40af; border-radius: 2px; vertical-align: middle;"></span> 建築</span>
+        <span><span style="display: inline-block; width: 10px; height: 10px; background: #fbbf24; border-radius: 2px; vertical-align: middle;"></span> 目標點</span>
+      </div>
+      <b>掩護：</b>+1護甲豁免 | <b>傷害：</b>S≥2T→2+ S>T→3+ S=T→4+ S&lt;T→5+ S≤T/2→6+
     </div>
   </div>
 
-  <div class="terrain-legend">
-    <h4>地形規則說明（官方10版）</h4>
-    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
-      <div class="terrain-item"><div class="terrain-color" style="background: #4a5568;"></div> 廢墟 Ruins：完全在內或不完全可見時+1護甲豁免</div>
-      <div class="terrain-item"><div class="terrain-color" style="background: #2d5a27;"></div> 樹林 Woods：完全在內或不完全可見時+1護甲豁免</div>
-      <div class="terrain-item"><div class="terrain-color" style="background: #78716c;"></div> 障礙物 Barricades：3"內且不完全可見時+1護甲豁免</div>
-      <div class="terrain-item"><div class="terrain-color" style="background: #854d0e;"></div> 彈坑 Craters：完全在內時+1護甲豁免</div>
-      <div class="terrain-item"><div class="terrain-color" style="background: #1e40af;"></div> 建築物 Buildings：阻擋視線，可提供掩護</div>
-      <div class="terrain-item"><div class="terrain-color" style="background: #fbbf24;"></div> 目標點 Objectives：3"範圍內以OC值計算控制</div>
-    </div>
-    <p style="margin-top: 8px; font-size: 11px; color: var(--muted);">
-      <b>掩護規則：</b>掩護提供+1護甲豁免（對遠程攻擊）。護甲3+或更好的模型面對AP0武器時不適用掩護加成。
-    </p>
-    <p style="margin-top: 4px; font-size: 11px; color: var(--muted);">
-      <b>傷害表：</b>S≥2×T=2+ | S>T=3+ | S=T=4+ | S<T=5+ | S≤T/2=6+
-    </p>
-  </div>
-
-  <div class="setup-actions">
-    <button class="start-game-btn" id="startGameBtn" onclick="startBattle()" disabled>
-      ⚔️ 開始戰鬥 ⚔️
-    </button>
-    <p style="color: var(--muted); margin-top: 10px; font-size: 12px;">雙方都需要至少選擇一個單位</p>
+  <div class="setup-actions" style="margin-top: 16px;">
+    <button class="start-game-btn" id="startGameBtn" onclick="startBattle()" disabled>⚔️ 開始戰鬥</button>
+    <p style="color: var(--muted); margin-top: 8px; font-size: 11px;">雙方都需要至少選擇一個單位</p>
   </div>
 </div>
 
@@ -5848,19 +5830,334 @@ function smartDeployUnits(units, player, deployZoneWidth, canvasWidth, canvasHei
   }
 }
 
-// ========== 戰場視覺特效系統 ==========
+// ========== 戰場視覺特效系統 (增強版) ==========
 const visualEffects = {
   floatingTexts: [],    // 浮動文字（技能名稱、傷害數字）
   attackLines: [],      // 攻擊射線
-  explosions: []        // 爆炸效果
+  explosions: [],       // 爆炸效果
+  particles: [],        // 粒子系統
+  screenShake: null,    // 螢幕震動
+  auras: [],            // 光環效果
+  trails: []            // 拖尾效果
 };
 
 // 視覺特效上限（防止記憶體洩漏）
 const MAX_VISUAL_EFFECTS = {
-  floatingTexts: 20,
-  attackLines: 10,
-  explosions: 10
+  floatingTexts: 30,
+  attackLines: 15,
+  explosions: 20,
+  particles: 200,
+  auras: 10,
+  trails: 50
 };
+
+// ===== 粒子系統 =====
+class Particle {
+  constructor(x, y, options = {}) {
+    this.x = x;
+    this.y = y;
+    this.vx = options.vx || (Math.random() - 0.5) * 8;
+    this.vy = options.vy || (Math.random() - 0.5) * 8;
+    this.gravity = options.gravity || 0.15;
+    this.friction = options.friction || 0.98;
+    this.size = options.size || 3 + Math.random() * 3;
+    this.color = options.color || '#ff6600';
+    this.life = options.life || 1;
+    this.decay = options.decay || 0.02;
+    this.type = options.type || 'circle'; // circle, spark, smoke, blood
+    this.rotation = Math.random() * Math.PI * 2;
+    this.rotationSpeed = (Math.random() - 0.5) * 0.2;
+  }
+
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.vy += this.gravity;
+    this.vx *= this.friction;
+    this.vy *= this.friction;
+    this.life -= this.decay;
+    this.rotation += this.rotationSpeed;
+    this.size *= 0.98;
+    return this.life > 0 && this.size > 0.5;
+  }
+
+  draw(ctx) {
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, this.life);
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.rotation);
+
+    if (this.type === 'spark') {
+      // 火花 - 拉長的菱形
+      ctx.fillStyle = this.color;
+      ctx.beginPath();
+      ctx.moveTo(0, -this.size * 2);
+      ctx.lineTo(this.size * 0.5, 0);
+      ctx.lineTo(0, this.size * 0.5);
+      ctx.lineTo(-this.size * 0.5, 0);
+      ctx.closePath();
+      ctx.fill();
+    } else if (this.type === 'smoke') {
+      // 煙霧 - 模糊圓形
+      const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size);
+      gradient.addColorStop(0, this.color);
+      gradient.addColorStop(1, 'transparent');
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.size, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (this.type === 'blood') {
+      // 血液 - 橢圓
+      ctx.fillStyle = this.color;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, this.size, this.size * 0.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // 預設圓形
+      ctx.fillStyle = this.color;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+}
+
+// 生成粒子爆發
+function emitParticles(x, y, count, options = {}) {
+  for (let i = 0; i < count; i++) {
+    const angle = options.angle !== undefined ?
+      options.angle + (Math.random() - 0.5) * (options.spread || Math.PI) :
+      Math.random() * Math.PI * 2;
+    const speed = options.speed || 3 + Math.random() * 5;
+
+    visualEffects.particles.push(new Particle(x, y, {
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      gravity: options.gravity ?? 0.15,
+      friction: options.friction ?? 0.96,
+      size: options.size || 2 + Math.random() * 4,
+      color: options.colors ? options.colors[Math.floor(Math.random() * options.colors.length)] : options.color || '#ff6600',
+      life: options.life || 0.8 + Math.random() * 0.4,
+      decay: options.decay || 0.015,
+      type: options.type || 'circle'
+    }));
+  }
+}
+
+// ===== 螢幕震動效果 =====
+function screenShake(intensity = 10, duration = 300) {
+  visualEffects.screenShake = {
+    intensity,
+    duration,
+    startTime: performance.now(),
+    offsetX: 0,
+    offsetY: 0
+  };
+}
+
+function updateScreenShake() {
+  if (!visualEffects.screenShake) return { x: 0, y: 0 };
+
+  const shake = visualEffects.screenShake;
+  const elapsed = performance.now() - shake.startTime;
+
+  if (elapsed >= shake.duration) {
+    visualEffects.screenShake = null;
+    return { x: 0, y: 0 };
+  }
+
+  const progress = elapsed / shake.duration;
+  const currentIntensity = shake.intensity * (1 - progress);
+
+  return {
+    x: (Math.random() - 0.5) * currentIntensity * 2,
+    y: (Math.random() - 0.5) * currentIntensity * 2
+  };
+}
+
+// ===== 光環效果 =====
+function showAura(x, y, options = {}) {
+  visualEffects.auras.push({
+    x, y,
+    radius: options.radius || 40,
+    color: options.color || 'rgba(255, 215, 0, 0.5)',
+    pulseSpeed: options.pulseSpeed || 0.005,
+    startTime: performance.now(),
+    duration: options.duration || 2000,
+    phase: 0
+  });
+}
+
+// ===== 拖尾效果 =====
+function addTrail(x, y, color = '#ffaa00', size = 4) {
+  visualEffects.trails.push({
+    x, y,
+    color,
+    size,
+    life: 1,
+    decay: 0.05
+  });
+}
+
+// ===== 戰場痕跡系統 =====
+const battlefieldScars = [];
+const MAX_SCARS = 50;
+
+// 添加戰場痕跡
+function addBattleScar(x, y, type, options = {}) {
+  if (battlefieldScars.length >= MAX_SCARS) {
+    battlefieldScars.shift(); // 移除最舊的
+  }
+
+  const scar = {
+    x, y,
+    type, // crater, burn, blood, debris, smoke
+    size: options.size || 20,
+    rotation: Math.random() * Math.PI * 2,
+    opacity: options.opacity || 0.6,
+    color: options.color,
+    createdAt: performance.now()
+  };
+
+  battlefieldScars.push(scar);
+}
+
+// 爆炸留下彈坑
+function addCrater(x, y, size = 25) {
+  addBattleScar(x, y, 'crater', { size, opacity: 0.5 });
+}
+
+// 留下焦痕
+function addBurnMark(x, y, size = 20) {
+  addBattleScar(x, y, 'burn', { size, opacity: 0.4 });
+}
+
+// 留下血跡
+function addBloodStain(x, y, size = 15) {
+  addBattleScar(x, y, 'blood', { size, opacity: 0.5 });
+}
+
+// 留下殘骸
+function addDebris(x, y, size = 30) {
+  addBattleScar(x, y, 'debris', { size, opacity: 0.6 });
+}
+
+// 渲染戰場痕跡（在地形之後、單位之前渲染）
+function renderBattlefieldScars() {
+  const now = performance.now();
+
+  for (const scar of battlefieldScars) {
+    ctx.save();
+    ctx.translate(scar.x, scar.y);
+    ctx.rotate(scar.rotation);
+
+    // 隨時間淡化
+    const age = (now - scar.createdAt) / 1000;
+    const fadeStart = 120; // 2分鐘後開始淡化
+    const fadeOpacity = age > fadeStart ? Math.max(0.1, scar.opacity * (1 - (age - fadeStart) / 60)) : scar.opacity;
+    ctx.globalAlpha = fadeOpacity;
+
+    switch (scar.type) {
+      case 'crater':
+        // 彈坑 - 深色圓形凹陷
+        const craterGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, scar.size);
+        craterGrad.addColorStop(0, 'rgba(20, 15, 10, 0.8)');
+        craterGrad.addColorStop(0.6, 'rgba(40, 30, 20, 0.5)');
+        craterGrad.addColorStop(1, 'rgba(60, 50, 40, 0)');
+        ctx.fillStyle = craterGrad;
+        ctx.beginPath();
+        ctx.arc(0, 0, scar.size, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 邊緣高光（凸起效果）
+        ctx.strokeStyle = 'rgba(80, 70, 50, 0.3)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, scar.size * 0.9, 0, Math.PI * 2);
+        ctx.stroke();
+        break;
+
+      case 'burn':
+        // 焦痕 - 黑色不規則形狀
+        ctx.fillStyle = 'rgba(15, 10, 5, 0.6)';
+        ctx.beginPath();
+        for (let i = 0; i < 8; i++) {
+          const angle = (i / 8) * Math.PI * 2;
+          const radius = scar.size * (0.6 + Math.random() * 0.4);
+          if (i === 0) {
+            ctx.moveTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+          } else {
+            ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+          }
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        // 橙色邊緣（餘燼）
+        ctx.strokeStyle = 'rgba(100, 50, 0, 0.3)';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        break;
+
+      case 'blood':
+        // 血跡 - 暗紅色飛濺
+        ctx.fillStyle = 'rgba(80, 0, 0, 0.6)';
+        // 主血泊
+        ctx.beginPath();
+        ctx.ellipse(0, 0, scar.size, scar.size * 0.7, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // 飛濺
+        for (let i = 0; i < 5; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const dist = scar.size * (0.8 + Math.random() * 0.5);
+          const splashSize = scar.size * (0.1 + Math.random() * 0.2);
+          ctx.beginPath();
+          ctx.arc(Math.cos(angle) * dist, Math.sin(angle) * dist, splashSize, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        break;
+
+      case 'debris':
+        // 殘骸 - 金屬碎片
+        ctx.fillStyle = 'rgba(60, 55, 50, 0.7)';
+        for (let i = 0; i < 6; i++) {
+          const angle = (i / 6) * Math.PI * 2 + Math.random() * 0.5;
+          const dist = Math.random() * scar.size * 0.8;
+          const pieceSize = scar.size * (0.1 + Math.random() * 0.15);
+
+          ctx.save();
+          ctx.translate(Math.cos(angle) * dist, Math.sin(angle) * dist);
+          ctx.rotate(Math.random() * Math.PI);
+
+          // 碎片形狀
+          ctx.beginPath();
+          ctx.moveTo(-pieceSize, -pieceSize * 0.5);
+          ctx.lineTo(pieceSize * 0.5, -pieceSize);
+          ctx.lineTo(pieceSize, pieceSize * 0.3);
+          ctx.lineTo(-pieceSize * 0.3, pieceSize);
+          ctx.closePath();
+          ctx.fill();
+
+          // 金屬高光
+          ctx.strokeStyle = 'rgba(100, 95, 90, 0.5)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          ctx.restore();
+        }
+        break;
+    }
+
+    ctx.restore();
+  }
+}
+
+// 清除所有戰場痕跡
+function clearBattlefieldScars() {
+  battlefieldScars.length = 0;
+}
 
 // 定期清理記憶體（每30秒執行一次）
 let lastCleanupTime = 0;
@@ -5887,6 +6184,15 @@ function trimVisualEffects() {
   if (visualEffects.explosions.length > MAX_VISUAL_EFFECTS.explosions) {
     visualEffects.explosions = visualEffects.explosions.slice(-MAX_VISUAL_EFFECTS.explosions);
   }
+  if (visualEffects.particles.length > MAX_VISUAL_EFFECTS.particles) {
+    visualEffects.particles = visualEffects.particles.slice(-MAX_VISUAL_EFFECTS.particles);
+  }
+  if (visualEffects.auras.length > MAX_VISUAL_EFFECTS.auras) {
+    visualEffects.auras = visualEffects.auras.slice(-MAX_VISUAL_EFFECTS.auras);
+  }
+  if (visualEffects.trails.length > MAX_VISUAL_EFFECTS.trails) {
+    visualEffects.trails = visualEffects.trails.slice(-MAX_VISUAL_EFFECTS.trails);
+  }
 }
 
 // 完全清除所有視覺特效
@@ -5894,6 +6200,10 @@ function clearAllVisualEffects() {
   visualEffects.floatingTexts = [];
   visualEffects.attackLines = [];
   visualEffects.explosions = [];
+  visualEffects.particles = [];
+  visualEffects.screenShake = null;
+  visualEffects.auras = [];
+  visualEffects.trails = [];
 }
 
 // 隱藏骰子介面
@@ -5976,7 +6286,7 @@ function showDamageNumber(x, y, damage, isCrit = false, sync = true) {
   }
 }
 
-// 顯示攻擊線/射線
+// 顯示攻擊線/射線（增強版）
 function showAttackLine(fromX, fromY, toX, toY, options = {}) {
   const effect = {
     fromX: fromX,
@@ -5988,24 +6298,289 @@ function showAttackLine(fromX, fromY, toX, toY, options = {}) {
     startTime: performance.now(),
     duration: options.duration || 400,
     progress: 0,
-    type: options.type || "beam" // "beam", "bullet", "melee"
+    type: options.type || "beam", // beam, laser, plasma, bolt, bullet, melee, gauss
+    glow: options.glow !== false
   };
 
   visualEffects.attackLines.push(effect);
+
+  // 槍口閃光
+  if (options.muzzleFlash !== false && effect.type !== 'melee') {
+    showMuzzleFlash(fromX, fromY, Math.atan2(toY - fromY, toX - fromX), effect.type);
+  }
 }
 
-// 顯示爆炸/命中效果（簡化版）
+// 槍口閃光效果
+function showMuzzleFlash(x, y, angle, type) {
+  let colors, count, speed;
+
+  switch(type) {
+    case 'plasma':
+      colors = ['#00ffff', '#00aaff', '#ffffff'];
+      count = 6;
+      speed = 4;
+      break;
+    case 'laser':
+      colors = ['#ff0000', '#ff4444', '#ff8888'];
+      count = 4;
+      speed = 3;
+      break;
+    case 'gauss':
+      colors = ['#00ff00', '#44ff44', '#88ff88'];
+      count = 8;
+      speed = 5;
+      break;
+    case 'bolt':
+      colors = ['#ffff00', '#ffaa00', '#ff6600'];
+      count = 5;
+      speed = 4;
+      break;
+    default:
+      colors = ['#ffaa00', '#ff6600', '#ffcc00'];
+      count = 4;
+      speed = 3;
+  }
+
+  emitParticles(x, y, count, {
+    colors,
+    speed,
+    angle,
+    spread: Math.PI / 3,
+    gravity: 0,
+    type: 'spark',
+    life: 0.3,
+    size: 3
+  });
+}
+
+// 近戰斬擊效果
+function showMeleeSlash(fromX, fromY, toX, toY, options = {}) {
+  const angle = Math.atan2(toY - fromY, toX - fromX);
+  const midX = (fromX + toX) / 2;
+  const midY = (fromY + toY) / 2;
+
+  // 斬擊弧線
+  visualEffects.attackLines.push({
+    fromX, fromY, toX, toY,
+    color: options.color || '#ffffff',
+    width: options.width || 4,
+    startTime: performance.now(),
+    duration: 250,
+    type: 'slash',
+    angle: angle,
+    glow: true
+  });
+
+  // 斬擊火花
+  emitParticles(midX, midY, 8, {
+    colors: ['#ffffff', '#ffff88', '#ffaa00'],
+    speed: 4,
+    angle: angle + Math.PI / 2,
+    spread: Math.PI,
+    gravity: 0,
+    type: 'spark',
+    life: 0.4
+  });
+}
+
+// 根據武器類型自動選擇效果
+function showWeaponEffect(fromX, fromY, toX, toY, weapon) {
+  const keywords = weapon.keywords || [];
+  const name = (weapon.name || '').toLowerCase();
+
+  let type = 'beam';
+  let color = '#ffaa00';
+  let width = 3;
+
+  // 根據武器關鍵字判斷
+  if (keywords.includes('Melta')) {
+    type = 'plasma';
+    color = '#ff4400';
+    width = 5;
+  } else if (keywords.includes('Plasma')) {
+    type = 'plasma';
+    color = '#00aaff';
+    width = 4;
+  } else if (name.includes('gauss') || name.includes('高斯')) {
+    type = 'gauss';
+    color = '#00ff88';
+    width = 3;
+  } else if (name.includes('laser') || name.includes('雷射') || name.includes('las')) {
+    type = 'laser';
+    color = '#ff0000';
+    width = 2;
+  } else if (keywords.includes('Torrent')) {
+    type = 'flame';
+    color = '#ff6600';
+    width = 8;
+  } else if (name.includes('bolt') || name.includes('爆矢')) {
+    type = 'bolt';
+    color = '#ffcc00';
+    width = 3;
+  }
+
+  showAttackLine(fromX, fromY, toX, toY, { type, color, width });
+
+  // 命中效果
+  setTimeout(() => {
+    showExplosion(toX, toY, {
+      radius: width * 4,
+      type: type === 'plasma' ? 'plasma' : type === 'gauss' ? 'electric' : 'normal',
+      particles: 8
+    });
+  }, 200);
+}
+
+// 顯示爆炸/命中效果（增強版）
 function showExplosion(x, y, options = {}) {
   const effect = {
     x: x,
     y: y,
-    radius: options.radius || 20,
+    radius: options.radius || 25,
+    maxRadius: options.maxRadius || (options.radius || 25) * 2,
     color: options.color || "#ff6600",
     startTime: performance.now(),
-    duration: options.duration || 250
+    duration: options.duration || 350,
+    type: options.type || 'normal' // normal, plasma, fire, electric
   };
 
   visualEffects.explosions.push(effect);
+
+  // 根據爆炸類型發射粒子
+  const particleCount = options.particles ?? 12;
+  if (particleCount > 0) {
+    if (options.type === 'plasma') {
+      emitParticles(x, y, particleCount, {
+        colors: ['#00ffff', '#0088ff', '#ffffff', '#00aaff'],
+        speed: 4,
+        gravity: 0,
+        type: 'circle',
+        life: 0.6
+      });
+    } else if (options.type === 'fire') {
+      emitParticles(x, y, particleCount, {
+        colors: ['#ff6600', '#ff3300', '#ffaa00', '#ff0000'],
+        speed: 3,
+        gravity: -0.1,
+        type: 'smoke',
+        life: 0.8
+      });
+    } else if (options.type === 'electric') {
+      emitParticles(x, y, particleCount / 2, {
+        colors: ['#00ffff', '#ffffff', '#88ffff'],
+        speed: 6,
+        gravity: 0,
+        type: 'spark',
+        life: 0.4
+      });
+    } else {
+      emitParticles(x, y, particleCount, {
+        colors: ['#ff6600', '#ffaa00', '#ff3300', '#ffcc00'],
+        speed: 4,
+        gravity: 0.1,
+        type: 'spark'
+      });
+    }
+  }
+
+  // 大爆炸加螢幕震動
+  if (options.shake !== false && (options.radius || 20) >= 25) {
+    screenShake(options.radius ? options.radius / 3 : 8, 200);
+  }
+
+  // 大爆炸留下焦痕
+  if (options.leaveScar !== false && (options.radius || 20) >= 30) {
+    addBurnMark(x, y, (options.radius || 20) * 0.6);
+  }
+}
+
+// 單位死亡爆炸效果
+function showDeathExplosion(x, y, unit) {
+  const isLargeUnit = unit.keywords?.some(k => ['Monster', 'Vehicle'].includes(k));
+  const isVehicle = unit.keywords?.includes('Vehicle');
+  const isOrganic = unit.keywords?.some(k => ['Infantry', 'Monster', 'Beast'].includes(k));
+  const radius = isLargeUnit ? 50 : 30;
+
+  // 主爆炸
+  showExplosion(x, y, {
+    radius: radius,
+    maxRadius: radius * 2.5,
+    duration: 500,
+    type: 'fire',
+    particles: isLargeUnit ? 30 : 15,
+    shake: true
+  });
+
+  // 留下戰場痕跡
+  addCrater(x, y, radius * 0.8);
+  addBurnMark(x + (Math.random() - 0.5) * 30, y + (Math.random() - 0.5) * 30, radius * 0.5);
+
+  // 載具留下殘骸，生物留下血跡
+  if (isVehicle) {
+    addDebris(x, y, radius);
+  } else if (isOrganic) {
+    addBloodStain(x, y, radius * 0.6);
+  }
+
+  // 碎片粒子
+  emitParticles(x, y, isLargeUnit ? 20 : 10, {
+    colors: ['#444444', '#666666', '#333333', '#555555'],
+    speed: isLargeUnit ? 8 : 5,
+    gravity: 0.3,
+    friction: 0.95,
+    size: isLargeUnit ? 6 : 4,
+    type: 'circle',
+    life: 1.2
+  });
+
+  // 火花
+  emitParticles(x, y, isLargeUnit ? 15 : 8, {
+    colors: ['#ffff00', '#ff8800', '#ffffff'],
+    speed: 6,
+    gravity: 0.05,
+    type: 'spark',
+    life: 0.5
+  });
+
+  // 大單位額外煙霧
+  if (isLargeUnit) {
+    setTimeout(() => {
+      emitParticles(x, y, 10, {
+        colors: ['rgba(50,50,50,0.8)', 'rgba(80,80,80,0.6)'],
+        speed: 1,
+        gravity: -0.05,
+        type: 'smoke',
+        size: 15,
+        life: 1.5,
+        decay: 0.01
+      });
+    }, 100);
+  }
+}
+
+// 受傷效果
+function showDamageEffect(x, y, damage, isCrit = false) {
+  // 血液/火花粒子
+  const particleCount = Math.min(damage * 2, 15);
+  emitParticles(x, y, particleCount, {
+    colors: isCrit ? ['#ff0000', '#cc0000', '#ff3333'] : ['#ff4444', '#ff6666', '#cc3333'],
+    speed: isCrit ? 5 : 3,
+    gravity: 0.2,
+    type: 'blood',
+    size: isCrit ? 4 : 3,
+    life: 0.6
+  });
+
+  // 暴擊額外效果
+  if (isCrit) {
+    showExplosion(x, y, {
+      radius: 15,
+      color: '#ff0000',
+      duration: 200,
+      particles: 0,
+      shake: true
+    });
+  }
 }
 
 // 更新並渲染所有視覺特效
@@ -6015,22 +6590,93 @@ function renderVisualEffects() {
   // 清理過量特效
   trimVisualEffects();
 
-  // 渲染攻擊射線
+  // ===== 渲染光環效果 =====
+  visualEffects.auras = visualEffects.auras.filter(aura => {
+    const elapsed = now - aura.startTime;
+    if (elapsed >= aura.duration) return false;
+
+    const progress = elapsed / aura.duration;
+    aura.phase += aura.pulseSpeed;
+    const pulse = 0.7 + Math.sin(aura.phase) * 0.3;
+    const alpha = (1 - progress) * 0.5;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    ctx.arc(aura.x, aura.y, aura.radius * pulse, 0, Math.PI * 2);
+    ctx.strokeStyle = aura.color;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // 內圈
+    ctx.beginPath();
+    ctx.arc(aura.x, aura.y, aura.radius * pulse * 0.6, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    return true;
+  });
+
+  // ===== 渲染拖尾效果 =====
+  visualEffects.trails = visualEffects.trails.filter(trail => {
+    trail.life -= trail.decay;
+    if (trail.life <= 0) return false;
+
+    ctx.save();
+    ctx.globalAlpha = trail.life * 0.6;
+    ctx.fillStyle = trail.color;
+    ctx.beginPath();
+    ctx.arc(trail.x, trail.y, trail.size * trail.life, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    return true;
+  });
+
+  // ===== 渲染攻擊射線（增強版）=====
   visualEffects.attackLines = visualEffects.attackLines.filter(line => {
     const elapsed = now - line.startTime;
     if (elapsed >= line.duration) return false;
 
     const progress = elapsed / line.duration;
-    const easeProgress = 1 - Math.pow(1 - progress, 3); // easeOutCubic
+    const easeProgress = 1 - Math.pow(1 - progress, 3);
 
     ctx.save();
 
-    if (line.type === "beam") {
-      // 光束效果（簡化版，移除漸層和陰影以提升性能）
-      const currentX = line.fromX + (line.toX - line.fromX) * easeProgress;
-      const currentY = line.fromY + (line.toY - line.fromY) * easeProgress;
+    const currentX = line.fromX + (line.toX - line.fromX) * easeProgress;
+    const currentY = line.fromY + (line.toY - line.fromY) * easeProgress;
 
-      // 主射線
+    // 添加拖尾
+    if (line.glow && progress < 0.8) {
+      addTrail(currentX, currentY, line.color, line.width);
+    }
+
+    if (line.type === "plasma" || line.type === "gauss") {
+      // 等離子/高斯 - 發光球體軌跡
+      const glowColor = line.type === 'plasma' ? 'rgba(0, 200, 255, ' : 'rgba(0, 255, 100, ';
+
+      // 外層光暈
+      ctx.beginPath();
+      ctx.arc(currentX, currentY, line.width * 3, 0, Math.PI * 2);
+      ctx.fillStyle = glowColor + (0.3 * (1 - progress)) + ')';
+      ctx.fill();
+
+      // 核心
+      ctx.beginPath();
+      ctx.arc(currentX, currentY, line.width, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+
+      // 連線
+      ctx.beginPath();
+      ctx.moveTo(line.fromX, line.fromY);
+      ctx.lineTo(currentX, currentY);
+      ctx.strokeStyle = glowColor + '0.5)';
+      ctx.lineWidth = line.width * 0.5;
+      ctx.stroke();
+
+    } else if (line.type === "laser") {
+      // 雷射 - 細長光束
       ctx.beginPath();
       ctx.moveTo(line.fromX, line.fromY);
       ctx.lineTo(currentX, currentY);
@@ -6039,66 +6685,212 @@ function renderVisualEffects() {
       ctx.lineCap = "round";
       ctx.stroke();
 
-      // 簡化的發光效果（用較粗的半透明線代替陰影）
+      // 發光效果
       ctx.beginPath();
       ctx.moveTo(line.fromX, line.fromY);
       ctx.lineTo(currentX, currentY);
-      ctx.strokeStyle = `rgba(255, 200, 100, ${0.3 * (1 - progress)})`;
-      ctx.lineWidth = line.width * 2;
+      ctx.strokeStyle = 'rgba(255, 100, 100, 0.4)';
+      ctx.lineWidth = line.width * 3;
       ctx.stroke();
 
-    } else if (line.type === "melee") {
-      // 近戰斬擊效果（簡化版）
+    } else if (line.type === "bolt") {
+      // 爆矢 - 子彈軌跡
+      const bulletX = currentX;
+      const bulletY = currentY;
+      const angle = Math.atan2(line.toY - line.fromY, line.toX - line.fromX);
+
+      ctx.save();
+      ctx.translate(bulletX, bulletY);
+      ctx.rotate(angle);
+
+      // 子彈
+      ctx.fillStyle = line.color;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, line.width * 2, line.width, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 尾焰
+      ctx.fillStyle = 'rgba(255, 150, 0, 0.6)';
+      ctx.beginPath();
+      ctx.moveTo(-line.width * 2, 0);
+      ctx.lineTo(-line.width * 6, line.width);
+      ctx.lineTo(-line.width * 6, -line.width);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.restore();
+
+    } else if (line.type === "slash" || line.type === "melee") {
+      // 斬擊 - 弧形刀光
+      const alpha = 1 - progress;
+      const angle = line.angle || Math.atan2(line.toY - line.fromY, line.toX - line.fromX);
+      const midX = (line.fromX + line.toX) / 2;
+      const midY = (line.fromY + line.toY) / 2;
+      const dist = Math.hypot(line.toX - line.fromX, line.toY - line.fromY);
+
+      ctx.save();
+      ctx.translate(midX, midY);
+      ctx.rotate(angle);
+
+      // 刀光弧線
+      ctx.beginPath();
+      ctx.arc(0, 0, dist / 2, -Math.PI * 0.3, Math.PI * 0.3);
+      ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+      ctx.lineWidth = line.width * (1 + progress);
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      // 內層
+      ctx.beginPath();
+      ctx.arc(0, 0, dist / 2, -Math.PI * 0.2, Math.PI * 0.2);
+      ctx.strokeStyle = `rgba(200, 220, 255, ${alpha * 0.8})`;
+      ctx.lineWidth = line.width * 0.5;
+      ctx.stroke();
+
+      ctx.restore();
+
+    } else if (line.type === "flame") {
+      // 火焰 - 多段火焰
+      const segments = 5;
+      for (let i = 0; i < segments; i++) {
+        const t = (i / segments) * easeProgress;
+        const fx = line.fromX + (line.toX - line.fromX) * t;
+        const fy = line.fromY + (line.toY - line.fromY) * t;
+        const size = line.width * (1 - t * 0.5) * (0.8 + Math.random() * 0.4);
+
+        ctx.beginPath();
+        ctx.arc(fx + (Math.random() - 0.5) * 10, fy + (Math.random() - 0.5) * 10, size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, ${100 + Math.floor(Math.random() * 100)}, 0, ${0.6 * (1 - progress)})`;
+        ctx.fill();
+      }
+
+    } else {
+      // 預設光束
       ctx.beginPath();
       ctx.moveTo(line.fromX, line.fromY);
-      ctx.lineTo(line.toX, line.toY);
-      ctx.strokeStyle = `rgba(255, 100, 100, ${1 - progress})`;
-      ctx.lineWidth = 3;
+      ctx.lineTo(currentX, currentY);
+      ctx.strokeStyle = line.color;
+      ctx.lineWidth = line.width;
       ctx.lineCap = "round";
       ctx.stroke();
+
+      // 發光
+      if (line.glow) {
+        ctx.beginPath();
+        ctx.moveTo(line.fromX, line.fromY);
+        ctx.lineTo(currentX, currentY);
+        ctx.strokeStyle = `rgba(255, 200, 100, ${0.3 * (1 - progress)})`;
+        ctx.lineWidth = line.width * 2.5;
+        ctx.stroke();
+      }
     }
 
     ctx.restore();
     return true;
   });
 
-  // 渲染爆炸效果（簡化版）
+  // ===== 渲染爆炸效果（增強版）=====
   visualEffects.explosions = visualEffects.explosions.filter(exp => {
     const elapsed = now - exp.startTime;
     if (elapsed >= exp.duration) return false;
 
     const progress = elapsed / exp.duration;
     const alpha = 1 - progress;
-    const currentRadius = exp.radius * (0.5 + progress * 0.5);
+    const maxR = exp.maxRadius || exp.radius * 2;
+    const currentRadius = exp.radius + (maxR - exp.radius) * progress;
 
-    // 單圈擴散效果
-    ctx.beginPath();
-    ctx.arc(exp.x, exp.y, currentRadius, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(255, 150, 50, ${alpha})`;
-    ctx.lineWidth = 3 * (1 - progress);
-    ctx.stroke();
+    ctx.save();
 
-    // 中心閃光
-    if (progress < 0.3) {
+    if (exp.type === 'plasma') {
+      // 等離子爆炸 - 藍色電弧
       ctx.beginPath();
-      ctx.arc(exp.x, exp.y, exp.radius * 0.2 * (1 - progress * 3), 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255, 255, 200, ${1 - progress * 3})`;
+      ctx.arc(exp.x, exp.y, currentRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(0, 200, 255, ${alpha})`;
+      ctx.lineWidth = 4 * (1 - progress);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(exp.x, exp.y, currentRadius * 0.6, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(150, 230, 255, ${alpha * 0.8})`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+    } else if (exp.type === 'electric') {
+      // 電擊效果 - 閃電
+      for (let i = 0; i < 6; i++) {
+        const angle = (i / 6) * Math.PI * 2 + progress * 2;
+        const len = currentRadius * (0.6 + Math.random() * 0.4);
+
+        ctx.beginPath();
+        ctx.moveTo(exp.x, exp.y);
+        let px = exp.x, py = exp.y;
+        for (let j = 0; j < 4; j++) {
+          px += Math.cos(angle + (Math.random() - 0.5)) * len / 4;
+          py += Math.sin(angle + (Math.random() - 0.5)) * len / 4;
+          ctx.lineTo(px, py);
+        }
+        ctx.strokeStyle = `rgba(100, 255, 255, ${alpha * 0.8})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+    } else if (exp.type === 'fire') {
+      // 火焰爆炸 - 橙紅色擴散
+      const gradient = ctx.createRadialGradient(exp.x, exp.y, 0, exp.x, exp.y, currentRadius);
+      gradient.addColorStop(0, `rgba(255, 200, 50, ${alpha * 0.8})`);
+      gradient.addColorStop(0.4, `rgba(255, 100, 0, ${alpha * 0.5})`);
+      gradient.addColorStop(1, `rgba(100, 0, 0, 0)`);
+
+      ctx.beginPath();
+      ctx.arc(exp.x, exp.y, currentRadius, 0, Math.PI * 2);
+      ctx.fillStyle = gradient;
       ctx.fill();
+
+    } else {
+      // 標準爆炸
+      // 外圈
+      ctx.beginPath();
+      ctx.arc(exp.x, exp.y, currentRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(255, 150, 50, ${alpha})`;
+      ctx.lineWidth = 4 * (1 - progress);
+      ctx.stroke();
+
+      // 中圈
+      ctx.beginPath();
+      ctx.arc(exp.x, exp.y, currentRadius * 0.7, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(255, 200, 100, ${alpha * 0.7})`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // 中心閃光
+      if (progress < 0.3) {
+        const flashAlpha = 1 - progress / 0.3;
+        ctx.beginPath();
+        ctx.arc(exp.x, exp.y, exp.radius * 0.4 * (1 - progress), 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 220, ${flashAlpha})`;
+        ctx.fill();
+      }
     }
 
+    ctx.restore();
     return true;
   });
 
-  // 渲染浮動文字
+  // ===== 渲染粒子 =====
+  visualEffects.particles = visualEffects.particles.filter(p => {
+    if (!p.update()) return false;
+    p.draw(ctx);
+    return true;
+  });
+
+  // ===== 渲染浮動文字 =====
   visualEffects.floatingTexts = visualEffects.floatingTexts.filter(ft => {
     const elapsed = now - ft.startTime;
     if (elapsed >= ft.duration) return false;
 
     const progress = elapsed / ft.duration;
 
-    // 計算動畫
     if (ft.type === "damage") {
-      // 傷害數字：向上跳動然後下落
       if (ft.bounce) {
         const bounceProgress = Math.min(1, progress * 3);
         ft.offsetY = -40 * Math.sin(bounceProgress * Math.PI);
@@ -6108,7 +6900,6 @@ function renderVisualEffects() {
       ft.opacity = progress < 0.7 ? 1 : 1 - (progress - 0.7) / 0.3;
       ft.scale = 1 + Math.sin(progress * Math.PI) * 0.3;
     } else {
-      // 技能文字：緩慢上升並淡出
       ft.offsetY = -50 * progress;
       ft.opacity = progress < 0.6 ? 1 : 1 - (progress - 0.6) / 0.4;
       ft.scale = 1 + (1 - progress) * 0.2;
@@ -6122,6 +6913,10 @@ function renderVisualEffects() {
 
     const drawX = ft.x;
     const drawY = ft.y + ft.offsetY;
+
+    // 陰影效果
+    ctx.shadowColor = ft.outline;
+    ctx.shadowBlur = 4;
 
     // 描邊
     ctx.strokeStyle = ft.outline;
@@ -6334,9 +7129,9 @@ function toggleAI1Mode() {
   document.getElementById("p1ModeLabel").textContent = ai1Enabled ? "AI-1" : "玩家一";
 
   // 顯示/隱藏難度選擇
-  const diffWrapper = document.getElementById("ai1DifficultyWrapper");
-  if (diffWrapper) {
-    diffWrapper.style.display = ai1Enabled ? "block" : "none";
+  const diffSelect = document.getElementById("ai1Difficulty");
+  if (diffSelect) {
+    diffSelect.style.display = ai1Enabled ? "inline-block" : "none";
   }
 
   checkAutoBattle();
@@ -12398,17 +13193,12 @@ async function performAttack(attacker, target, weapon, mode) {
   // 顯示攻擊動畫 + 音效
   if (mode === "ranged") {
     playSound('shoot', { weapon: weapon.name.includes('雷射') || weapon.name.includes('光束') ? 'laser' : 'rifle' });
-    showAttackLine(attacker.x, attacker.y, target.x, target.y, {
-      color: "#ffaa00",
-      type: "beam",
-      duration: 500
-    });
+    showWeaponEffect(attacker.x, attacker.y, target.x, target.y, weapon);
   } else {
     playSound('melee');
-    showAttackLine(attacker.x, attacker.y, target.x, target.y, {
-      color: "#ff4444",
-      type: "melee",
-      duration: 400
+    showMeleeSlash(attacker.x, attacker.y, target.x, target.y, {
+      color: "#ffffff",
+      width: 4
     });
   }
 
@@ -12864,11 +13654,14 @@ async function performAttack(attacker, target, weapon, mode) {
     playSound('explosion', { size: 'medium' });
   }
 
-  // 顯示傷害數字和爆炸效果
+  // 顯示傷害數字和受傷效果
   showDamageNumber(target.x, target.y, totalDamage, totalDamage >= 5);
+  showDamageEffect(target.x, target.y, totalDamage, totalDamage >= 5);
   showExplosion(target.x, target.y, {
-    radius: 15 + totalDamage * 2,
-    color: totalDamage >= 5 ? "#ff0000" : "#ff6600"
+    radius: 12 + totalDamage * 2,
+    type: totalDamage >= 5 ? 'fire' : 'normal',
+    particles: Math.min(totalDamage * 2, 15),
+    shake: totalDamage >= 6
   });
 
   // 應用戰後能力效果（如吞噬恢復）
@@ -12894,16 +13687,12 @@ async function performAttack(attacker, target, weapon, mode) {
     playSound('death');
     playSound('explosion', { size: 'large' });
 
-    // 單位被消滅時顯示大爆炸
-    showExplosion(target.x, target.y, {
-      radius: 50,
-      color: "#ff0000",
-      duration: 500
-    });
+    // 單位被消滅時顯示死亡爆炸效果
+    showDeathExplosion(target.x, target.y, target);
     showFloatingText(target.x, target.y, "💀 擊殺!", {
       color: "#ff0000",
-      fontSize: 20,
-      duration: 2000
+      fontSize: 22,
+      duration: 1500
     });
 
     // ===== Deadly Demise（致命毀滅）- 官方10版規則 =====
@@ -14084,13 +14873,14 @@ function render() {
   ctx.fillRect(0, 0, canvas.width, canvas.height); // 使用canvas實際像素尺寸
   ctx.restore();
 
-  // 應用縮放和平移
+  // 應用縮放和平移（含螢幕震動）
+  const shake = updateScreenShake();
   ctx.save();
   ctx.setTransform(
     devicePixelRatio * viewZoom, 0,
     0, devicePixelRatio * viewZoom,
-    viewOffsetX * devicePixelRatio,
-    viewOffsetY * devicePixelRatio
+    (viewOffsetX + shake.x) * devicePixelRatio,
+    (viewOffsetY + shake.y) * devicePixelRatio
   );
 
   // 繪製網格（使用統一的網格大小函數）
@@ -14256,6 +15046,9 @@ function render() {
       }
     }
   }
+
+  // 繪製戰場痕跡（爆炸、焦痕、殘骸等）
+  renderBattlefieldScars();
 
   // 繪製單位
   for (const unit of gameState.units) {
