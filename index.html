@@ -546,7 +546,7 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
   <div class="setup-header">
     <h1>⚔️ 戰鎚 40,000 ⚔️</h1>
     <p>第十版核心規則 - 軍表配置</p>
-    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.2.3 (2026-02-07)</p>
+    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.2.4 (2026-02-07)</p>
   </div>
 
   <!-- 連線對戰選項 -->
@@ -961,6 +961,9 @@ let lastLogTimestamp = 0;   // 紀錄同步時間戳
 let lastActionTimestamp = 0;  // 動作同步時間戳
 let lastGameStateTimestamp = 0;  // 遊戲狀態同步時間戳
 let gameInitialized = false;  // 遊戲是否已初始化完成
+let turnInProgress = false;  // 防止重複觸發回合
+let lastProcessedRound = 0;  // 上次處理的回合
+let lastProcessedPlayer = 0;  // 上次處理的玩家
 
 // 產生隨機房間碼
 function generateRoomCode() {
@@ -1382,17 +1385,27 @@ function syncGameStateFromFirebase(remoteState) {
     myId: onlinePlayerId
   });
 
-  // 如果現在是自己的回合，觸發回合開始
-  if (isMyTurn()) {
+  // 如果現在是自己的回合，且還沒處理過這個回合，才觸發回合開始
+  const isNewTurn = (gameState.round !== lastProcessedRound || gameState.currentPlayer !== lastProcessedPlayer);
+
+  if (isMyTurn() && gameState.phase === 'command' && isNewTurn && !turnInProgress) {
+    lastProcessedRound = gameState.round;
+    lastProcessedPlayer = gameState.currentPlayer;
+    turnInProgress = true;
+
     log(`輪到你的回合！`, 'phase', false);
-    if (gameState.phase === 'command') {
-      const isAITurn = (gameState.currentPlayer === 1 && ai1Enabled) || (gameState.currentPlayer === 2 && ai2Enabled);
-      console.warn('[syncGameStateFromFirebase] 觸發我的回合:', { isAITurn, currentPlayer: gameState.currentPlayer, myId: onlinePlayerId });
-      if (isAITurn) {
-        setTimeout(() => runAITurn(), 500);
-      } else {
-        setTimeout(() => executeCommandPhase(), 100);
-      }
+    const isAITurn = (gameState.currentPlayer === 1 && ai1Enabled) || (gameState.currentPlayer === 2 && ai2Enabled);
+    console.warn('[syncGameStateFromFirebase] 觸發我的回合:', {
+      isAITurn,
+      currentPlayer: gameState.currentPlayer,
+      round: gameState.round,
+      myId: onlinePlayerId
+    });
+
+    if (isAITurn) {
+      setTimeout(async () => { await runAITurn(); turnInProgress = false; }, 500);
+    } else {
+      setTimeout(async () => { await executeCommandPhase(); turnInProgress = false; }, 100);
     }
   }
 
@@ -7433,12 +7446,16 @@ function endTurn() {
       phase: gameState.phase
     });
 
-    // 如果現在是自己的回合，開始行動
+    // 如果現在是自己的回合，開始行動（更新追蹤變數防止重複觸發）
     if (isMyTurn()) {
+      lastProcessedRound = gameState.round;
+      lastProcessedPlayer = gameState.currentPlayer;
+      turnInProgress = true;
+
       if (isAITurn) {
-        setTimeout(() => runAITurn(), 500);
+        setTimeout(async () => { await runAITurn(); turnInProgress = false; }, 500);
       } else {
-        setTimeout(() => executeCommandPhase(), 100);
+        setTimeout(async () => { await executeCommandPhase(); turnInProgress = false; }, 100);
       }
     }
     // 對方的回合：等待對方同步
