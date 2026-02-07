@@ -546,7 +546,7 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
   <div class="setup-header">
     <h1>⚔️ 戰鎚 40,000 ⚔️</h1>
     <p>第十版核心規則 - 軍表配置</p>
-    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.1.0 (2026-02-07)</p>
+    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.1.1 (2026-02-07)</p>
   </div>
 
   <!-- 連線對戰選項 -->
@@ -1317,9 +1317,13 @@ function syncGameStateFromFirebase(remoteState) {
   const playerName = gameState.currentPlayer === 1 ? "玩家一" : "玩家二";
   document.getElementById("currentPlayerName").textContent = playerName;
 
-  // 提示是否為自己的回合
+  // 提示是否為自己的回合，並啟動回合
   if (isMyTurn()) {
     log(`輪到你的回合！`, 'phase', false);  // 本地提示不同步
+    // 如果是指揮階段，啟動指揮階段流程
+    if (gameState.phase === 'command') {
+      setTimeout(() => startCommandPhase(), 100);
+    }
   }
 
   render();
@@ -5922,15 +5926,15 @@ function setupCanvasEvents() {
 }
 
 async function handleCanvasClick(x, y) {
-  // 線上模式：檢查是否為自己的回合
-  if (isOnlineMode && !isMyTurn()) {
-    log('等待對手行動...', 'info');
+  // 部署階段處理（線上模式雙方都可以部署自己的單位）
+  if (gameState.phase === "deployment") {
+    handleDeployClick(x, y);
     return;
   }
 
-  // 部署階段處理
-  if (gameState.phase === "deployment") {
-    handleDeployClick(x, y);
+  // 線上模式：非部署階段檢查是否為自己的回合
+  if (isOnlineMode && !isMyTurn()) {
+    log('等待對手行動...', 'info');
     return;
   }
 
