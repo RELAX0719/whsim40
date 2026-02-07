@@ -1138,24 +1138,10 @@ function listenToRoom() {
     if (data.gameStarted && !isHost) {
       const setupScreen = document.getElementById('setupScreen');
       if (setupScreen && setupScreen.style.display !== 'none') {
-        // 玩家2上傳自己的軍隊
-        roomRef.child('armies/2').set({
-          roster: armyRosters[2].map(u => ({
-            id: u.id,
-            name: u.name,
-            points: u.points,
-            stats: u.stats,
-            weapons: u.weapons,
-            abilities: u.abilities,
-            keywords: u.keywords,
-            inv: u.inv,
-            img: u.img
-          })),
-          faction: document.getElementById('p2Faction').value,
-          detachment: document.getElementById('p2Detachment').value
-        });
+        // 確保自己的軍隊已同步（以防萬一）
+        syncArmyToFirebase(2);
 
-        // 載入房主的軍隊
+        // 載入房主的軍隊（應該已經即時同步了）
         roomRef.child('armies/1').once('value').then((snapshot) => {
           if (snapshot.exists()) {
             const hostArmy = snapshot.val();
@@ -4771,12 +4757,40 @@ function addUnitToRoster(player, factionId, unit) {
   roster.push({ ...unit, faction: factionId, uid: Date.now() + Math.random() });
   updateRosterDisplay(player);
   checkStartButton();
+  syncArmyToFirebase(player);  // 即時同步軍隊
 }
 
 function removeFromRoster(player, index) {
   armyRosters[player].splice(index, 1);
   updateRosterDisplay(player);
   checkStartButton();
+  syncArmyToFirebase(player);  // 即時同步軍隊
+}
+
+// 線上模式：即時同步軍隊到 Firebase
+function syncArmyToFirebase(player) {
+  if (!isOnlineMode || !roomRef) return;
+  if (player !== onlinePlayerId) return;  // 只同步自己的軍隊
+
+  const roster = armyRosters[player];
+  const factionSelect = document.getElementById(`p${player}Faction`);
+  const detachmentSelect = document.getElementById(`p${player}Detachment`);
+
+  roomRef.child(`armies/${player}`).set({
+    roster: roster.map(u => ({
+      id: u.id,
+      name: u.name,
+      points: u.points,
+      stats: u.stats,
+      weapons: u.weapons,
+      abilities: u.abilities,
+      keywords: u.keywords,
+      inv: u.inv,
+      img: u.img
+    })),
+    faction: factionSelect ? factionSelect.value : '',
+    detachment: detachmentSelect ? detachmentSelect.value : ''
+  });
 }
 
 // ========== 點數上限設定 ==========
@@ -4800,6 +4814,7 @@ function clearRoster(player) {
   armyRosters[player] = [];
   updateRosterDisplay(player);
   checkStartButton();
+  syncArmyToFirebase(player);  // 即時同步軍隊
 }
 
 // ========== Meta 自動配置 ==========
@@ -4925,6 +4940,7 @@ function autoConfigArmy(player, factionId, buildType) {
 
   updateRosterDisplay(player);
   checkStartButton();
+  syncArmyToFirebase(player);  // 即時同步軍隊
 }
 
 // 智能填充剩餘點數
@@ -4986,6 +5002,7 @@ function smartFillArmy(player, factionId) {
 
   updateRosterDisplay(player);
   checkStartButton();
+  syncArmyToFirebase(player);  // 即時同步軍隊
 }
 
 function updateRosterDisplay(player) {
@@ -5029,47 +5046,25 @@ function startBattle() {
     return;
   }
 
-  // 線上模式：同步軍隊並通知對手遊戲開始
+  // 線上模式：檢查並載入對手軍隊
   if (isOnlineMode && roomRef) {
-    // 上傳房主的軍隊資料
-    roomRef.child('armies/1').set({
-      roster: armyRosters[1].map(u => ({
-        id: u.id,
-        name: u.name,
-        points: u.points,
-        stats: u.stats,
-        weapons: u.weapons,
-        abilities: u.abilities,
-        keywords: u.keywords,
-        inv: u.inv,
-        img: u.img
-      })),
-      faction: document.getElementById('p1Faction').value,
-      detachment: document.getElementById('p1Detachment').value
-    });
+    // 確保自己的軍隊已同步（以防萬一）
+    syncArmyToFirebase(1);
 
     roomRef.child('status').set('playing');
     roomRef.child('gameStarted').set(true);
 
-    // 等待對手軍隊資料（最多等5秒）
-    let waitCount = 0;
-    const waitForArmy = setInterval(async () => {
-      const snapshot = await roomRef.child('armies/2').once('value');
+    // 載入對手軍隊資料（應該已經即時同步了）
+    roomRef.child('armies/2').once('value').then((snapshot) => {
       if (snapshot.exists()) {
-        clearInterval(waitForArmy);
         const enemyArmy = snapshot.val();
-        // 載入對手軍隊
         loadEnemyArmy(enemyArmy, 2);
         continueStartBattle();
       } else {
-        waitCount++;
-        if (waitCount > 50) { // 5秒超時
-          clearInterval(waitForArmy);
-          alert('對手軍隊資料未收到，請重試');
-        }
+        alert('對手尚未配置軍隊，請等待對手完成配置');
       }
-    }, 100);
-    return; // 等待後再繼續
+    });
+    return;
   }
 
   continueStartBattle();
