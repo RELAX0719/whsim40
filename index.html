@@ -580,7 +580,7 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
   <div class="setup-header">
     <h1>⚔️ 戰鎚 40,000 ⚔️</h1>
     <p>第十版核心規則 - 軍表配置</p>
-    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.3.8 (2026-02-07)</p>
+    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.4.0 (2026-02-07)</p>
   </div>
 
   <!-- 連線對戰選項 -->
@@ -875,6 +875,7 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
         <button class="toolbar-btn" id="btnShoot" onclick="setAction('shoot')" disabled>射擊</button>
         <button class="toolbar-btn" id="btnCharge" onclick="setAction('charge')" disabled>衝鋒</button>
         <button class="toolbar-btn" id="btnFight" onclick="setAction('fight')" disabled>近戰</button>
+        <button class="toolbar-btn danger" id="btnConfirmAttack" onclick="confirmAttack()" style="display:none;">⚔️ 確認攻擊</button>
         <button class="toolbar-btn" id="btnReroll" onclick="useCommandReroll()" disabled title="花費1CP重擲一顆骰子">🎲 指揮重擲</button>
         <span style="font-size: 11px; color: var(--gold); margin-left: 4px;">CP: <b id="cpDisplay">0</b></span>
         <button class="toolbar-btn danger" id="btnEndTurn" onclick="endTurn()">結束回合</button>
@@ -1528,6 +1529,13 @@ function syncGameStateFromFirebase(remoteState) {
     }
   }
 
+  // 不是自己回合時，重置UI狀態
+  if (!isMyTurn()) {
+    turnInProgress = false;
+    hideAttackConfirmButton();
+    gameState.targetUnit = null;
+  }
+
   updatePhaseDisplay();
   render();
 }
@@ -1690,7 +1698,16 @@ function handleRemoteVisualEffect(effectData) {
 // INCH = 像素/英吋，控制整體場景大小
 // 10 = 小場景（適合小螢幕）, 15 = 中等, 20 = 大場景
 const INCH = 15;
+const GRID_SIZE = 25;  // 網格吸附大小（像素），用於單位定位
 let maxPoints = 1000; // 可調整的點數上限
+
+// 將座標吸附到網格
+function snapToGrid(x, y) {
+  return {
+    x: Math.round(x / GRID_SIZE) * GRID_SIZE,
+    y: Math.round(y / GRID_SIZE) * GRID_SIZE
+  };
+}
 
 // ========== 音效系統 ==========
 let audioContext = null;
@@ -5638,17 +5655,20 @@ function handleDeployClick(canvasX, canvasY) {
     return;
   }
 
+  // 吸附到網格
+  const snapped = snapToGrid(canvasX, canvasY);
+
   // 檢查是否與已部署單位重疊
   const baseSize = getUnitBaseSize(undeployed);
   const deployedUnits = gameState.units.filter(u => u.deployed);
-  if (!isPositionValid(canvasX, canvasY, baseSize, deployedUnits)) {
+  if (!isPositionValid(snapped.x, snapped.y, baseSize, deployedUnits)) {
     log(`此位置與其他單位重疊，請選擇其他位置`, "info");
     return;
   }
 
   // 部署單位
-  undeployed.x = canvasX;
-  undeployed.y = canvasY;
+  undeployed.x = snapped.x;
+  undeployed.y = snapped.y;
   undeployed.deployed = true;
   undeployed.visible = true;
 
@@ -6385,11 +6405,13 @@ async function handleCanvasClick(x, y) {
         return;
       }
 
-      // 有射擊/近戰動作時，敵方單位作為目標
+      // 有射擊/近戰動作時，敵方單位作為目標（但先顯示資訊，需確認攻擊）
       if (gameState.currentAction === "shoot" || gameState.currentAction === "fight") {
         if (unit.player !== gameState.currentPlayer) {
+          // 先選擇敵方單位顯示資訊，設為目標
           gameState.targetUnit = unit;
-          await executeAction();
+          selectUnitForView(unit);  // 只查看，不改變選中的攻擊單位
+          showAttackConfirmButton();  // 顯示攻擊確認按鈕
           return;
         }
         // 自己的單位：取消動作並選擇該單位
@@ -6412,25 +6434,28 @@ async function handleCanvasClick(x, y) {
   if (gameState.currentAction === "move" && gameState.selectedUnit) {
     const unit = gameState.selectedUnit;
     const maxDist = unit.stats.M * INCH;
-    const dist = Math.hypot(x - unit.x, y - unit.y);
+
+    // 吸附到網格
+    const snapped = snapToGrid(x, y);
+    const dist = Math.hypot(snapped.x - unit.x, snapped.y - unit.y);
 
     if (dist <= maxDist) {
       // 檢查是否與其他單位重疊
       const baseSize = getUnitBaseSize(unit);
       const otherUnits = gameState.units.filter(u => u !== unit && u.alive);
-      if (!isPositionValid(x, y, baseSize, otherUnits)) {
+      if (!isPositionValid(snapped.x, snapped.y, baseSize, otherUnits)) {
         setHint(`無法移動到該位置，會與其他單位重疊`);
         return;
       }
-      unit.x = x;
-      unit.y = y;
+      unit.x = snapped.x;
+      unit.y = snapped.y;
       unit.hasMoved = true;
       checkCover(unit);
       log(`${unit.name} 移動到新位置`, "info");
 
-      // 線上模式同步
+      // 線上模式同步（使用吸附後的座標）
       if (isOnlineMode) {
-        sendAction({ type: 'move', unitId: unit.id, x: x, y: y });
+        sendAction({ type: 'move', unitId: unit.id, x: unit.x, y: unit.y });
       }
 
       clearAction();
@@ -6534,6 +6559,117 @@ function selectUnit(unit) {
   render();
 }
 
+// 只查看單位資訊，不改變已選中的攻擊單位
+function selectUnitForView(unit) {
+  // 暫存目前選中的單位
+  const currentAttacker = gameState.selectedUnit;
+
+  // 確保單位資料完整
+  if (!unit || !unit.stats || !unit.weapons) {
+    console.warn('[selectUnitForView] 單位資料不完整:', unit?.id, unit?.name);
+    setHint('無法顯示單位資訊');
+    return;
+  }
+
+  // 顯示目標單位資訊
+  const faction = UNIT_DATABASE[unit.faction];
+  const factionName = faction?.name || unit.faction || '未知';
+  let weaponsHtml = "";
+
+  if (unit.weapons.ranged) {
+    const w = unit.weapons.ranged;
+    const keywords = w.keywords ? `<div style="font-size: 9px; color: #fbbf24; margin-top: 2px;">${w.keywords.join(", ")}</div>` : "";
+    weaponsHtml += `
+      <div class="weapon-item">
+        <div class="weapon-name">🔫 ${w.name}</div>
+        <div class="weapon-stats">射程${w.range}" A${w.A} BS${w.skill}+ S${w.S} AP${w.AP} D${w.D}</div>
+        ${keywords}
+      </div>
+    `;
+  }
+  if (unit.weapons.melee) {
+    const w = unit.weapons.melee;
+    const keywords = w.keywords ? `<div style="font-size: 9px; color: #fbbf24; margin-top: 2px;">${w.keywords.join(", ")}</div>` : "";
+    weaponsHtml += `
+      <div class="weapon-item">
+        <div class="weapon-name">⚔️ ${w.name}</div>
+        <div class="weapon-stats">A${w.A} WS${w.skill}+ S${w.S} AP${w.AP} D${w.D}</div>
+        ${keywords}
+      </div>
+    `;
+  }
+
+  document.getElementById("selectedUnitInfo").innerHTML = `
+    <div style="background: rgba(220,38,38,0.2); border: 1px solid var(--red); border-radius: 8px; padding: 8px; margin-bottom: 8px;">
+      <div style="font-size: 12px; color: var(--red); font-weight: bold;">🎯 攻擊目標</div>
+    </div>
+    <div class="selected-unit-header">
+      <div class="selected-avatar"><img src="${unit.img}" onerror="this.style.display='none'"></div>
+      <div class="selected-details">
+        <div class="selected-name">${unit.name}</div>
+        <div class="selected-faction">${factionName} - ${unit.points}點</div>
+        <div style="margin-top: 4px; font-size: 11px;">
+          HP: ${unit.currentHP}/${unit.maxHP} ${unit.inCover ? "🛡️掩護" : ""} ${unit.battleShocked ? "💀戰慄" : ""}
+        </div>
+      </div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-cell"><div class="stat-label">移動</div><div class="stat-value">${unit.stats.M}"</div></div>
+      <div class="stat-cell"><div class="stat-label">韌性</div><div class="stat-value">${unit.stats.T}</div></div>
+      <div class="stat-cell"><div class="stat-label">護甲</div><div class="stat-value">${unit.stats.Sv}+</div></div>
+      <div class="stat-cell"><div class="stat-label">傷口</div><div class="stat-value">${unit.currentHP}</div></div>
+      <div class="stat-cell"><div class="stat-label">領導</div><div class="stat-value">${unit.stats.Ld}+</div></div>
+      <div class="stat-cell"><div class="stat-label">OC</div><div class="stat-value">${unit.stats.OC}</div></div>
+    </div>
+    <div class="weapons-section">
+      ${weaponsHtml}
+    </div>
+    ${unit.abilities?.length ? `<div style="margin-top: 8px; font-size: 10px; color: var(--muted);">
+      <b>特殊能力:</b> ${unit.abilities.join(", ")}
+    </div>` : ""}
+    ${unit.battleHistory?.length ? `
+    <div style="margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px;">
+      <div style="font-size: 11px; font-weight: bold; color: var(--gold); margin-bottom: 5px;">📜 戰鬥歷史</div>
+      <div style="max-height: 80px; overflow-y: auto; font-size: 10px;">
+        ${unit.battleHistory.slice().reverse().map(h => `
+          <div style="padding: 2px 0; color: ${h.type === 'kill' ? '#22c55e' : h.type === 'death' ? '#ef4444' : h.type === 'damage' ? '#f97316' : h.type === 'attack' ? '#60a5fa' : '#94a3b8'};">
+            [R${h.round}] ${h.message}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    ` : ""}
+  `;
+
+  setHint(`目標: ${unit.name} | 點擊「確認攻擊」執行攻擊`);
+  render();
+}
+
+// 顯示攻擊確認按鈕
+function showAttackConfirmButton() {
+  const btnConfirmAttack = document.getElementById("btnConfirmAttack");
+  if (btnConfirmAttack) {
+    btnConfirmAttack.style.display = "inline-block";
+    btnConfirmAttack.disabled = false;
+  }
+}
+
+// 隱藏攻擊確認按鈕
+function hideAttackConfirmButton() {
+  const btnConfirmAttack = document.getElementById("btnConfirmAttack");
+  if (btnConfirmAttack) {
+    btnConfirmAttack.style.display = "none";
+  }
+}
+
+// 執行確認的攻擊
+async function confirmAttack() {
+  if (gameState.selectedUnit && gameState.targetUnit) {
+    await executeAction();
+  }
+  hideAttackConfirmButton();
+}
+
 function updateSelectedUnitInfo() {
   const unit = gameState.selectedUnit;
   if (!unit) {
@@ -6541,7 +6677,15 @@ function updateSelectedUnitInfo() {
     return;
   }
 
+  // 確保單位資料完整（使用本地資料）
+  if (!unit.stats || !unit.weapons) {
+    console.warn('[updateSelectedUnitInfo] 單位資料不完整:', unit.id, unit.name);
+    document.getElementById("selectedUnitInfo").innerHTML = `<p style="color: var(--muted); text-align: center; padding: 20px;">載入單位資料中...</p>`;
+    return;
+  }
+
   const faction = UNIT_DATABASE[unit.faction];
+  const factionName = faction?.name || unit.faction || '未知';
   let weaponsHtml = "";
 
   if (unit.weapons.ranged) {
@@ -6572,7 +6716,7 @@ function updateSelectedUnitInfo() {
       <div class="selected-avatar"><img src="${unit.img}" onerror="this.style.display='none'"></div>
       <div class="selected-details">
         <div class="selected-name">${unit.name}</div>
-        <div class="selected-faction">${faction.name} - ${unit.points}點</div>
+        <div class="selected-faction">${factionName} - ${unit.points}點</div>
         <div style="margin-top: 4px; font-size: 11px;">
           HP: ${unit.currentHP}/${unit.maxHP} ${unit.inCover ? "🛡️掩護" : ""} ${unit.battleShocked ? "💀戰慄" : ""}
         </div>
@@ -7770,6 +7914,12 @@ function endTurn() {
     return;
   }
 
+  // 重置回合進行中標記，防止卡住
+  turnInProgress = false;
+
+  // 隱藏攻擊確認按鈕
+  hideAttackConfirmButton();
+
   // 清除所有視覺特效和UI
   clearAllUIEffects();
 
@@ -7944,13 +8094,19 @@ function checkVictory() {
 function updateUnitLists() {
   const list1 = document.getElementById("team1List");
   const list2 = document.getElementById("team2List");
+  if (!list1 || !list2) return;
 
   list1.innerHTML = "";
   list2.innerHTML = "";
 
+  if (!gameState.units || !Array.isArray(gameState.units)) return;
+
   gameState.units.forEach(unit => {
+    // 跳過無效單位
+    if (!unit || !unit.id || !unit.name) return;
+
     const container = unit.player === 1 ? list1 : list2;
-    const hpPct = (unit.currentHP / unit.maxHP) * 100;
+    const hpPct = ((unit.currentHP || 0) / (unit.maxHP || 1)) * 100;
 
     let classes = "unit-item";
     if (!unit.alive) classes += " dead";
@@ -8047,7 +8203,9 @@ function toggleCombatLog() {
 
 // 添加單位戰鬥歷史記錄
 function addBattleHistory(unit, message, type = "info") {
-  if (!unit || !unit.battleHistory) return;
+  if (!unit) return;
+  if (!unit.battleHistory) unit.battleHistory = [];
+
   unit.battleHistory.push({
     round: gameState.round,
     phase: gameState.phase,
@@ -8059,6 +8217,11 @@ function addBattleHistory(unit, message, type = "info") {
   const MAX_HISTORY = 20;
   if (unit.battleHistory.length > MAX_HISTORY) {
     unit.battleHistory.shift();
+  }
+
+  // 線上模式：立即同步戰鬥歷史
+  if (isOnlineMode) {
+    syncGameStateToFirebase();
   }
 }
 
@@ -8100,19 +8263,29 @@ function render() {
     viewOffsetY * devicePixelRatio
   );
 
-  // 繪製網格（批次繪製以提升性能）
-  ctx.strokeStyle = "rgba(255,255,255,0.05)";
+  // 繪製網格（使用 GRID_SIZE 常數）
+  ctx.strokeStyle = "rgba(255,255,255,0.1)";
   ctx.lineWidth = 1;
   ctx.beginPath();
-  for (let x = 0; x < w; x += 50) {
+  for (let x = 0; x < w; x += GRID_SIZE) {
     ctx.moveTo(x, 0);
     ctx.lineTo(x, h);
   }
-  for (let y = 0; y < h; y += 50) {
+  for (let y = 0; y < h; y += GRID_SIZE) {
     ctx.moveTo(0, y);
     ctx.lineTo(w, y);
   }
   ctx.stroke();
+
+  // 繪製網格交叉點（更清晰的定位參考）
+  ctx.fillStyle = "rgba(255,255,255,0.15)";
+  for (let x = 0; x <= w; x += GRID_SIZE) {
+    for (let y = 0; y <= h; y += GRID_SIZE) {
+      ctx.beginPath();
+      ctx.arc(x, y, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
 
   // 繪製部署區（部署階段時顯示）
   if (gameState.phase === "deployment") {
@@ -8231,13 +8404,19 @@ function render() {
 
   // 繪製單位
   for (const unit of gameState.units) {
+    // 跳過無效單位（防止渲染錯誤導致所有單位消失）
+    if (!unit || typeof unit.x !== 'number' || typeof unit.y !== 'number') {
+      console.warn('[render] 跳過無效單位:', unit?.id);
+      continue;
+    }
+
     // 部署階段只顯示已部署的單位
     if (gameState.phase === "deployment" && !unit.deployed) continue;
 
     // 動態計算底板大小
     const BASE_SIZE = getUnitBaseSize(unit);
 
-    ctx.globalAlpha = unit.alive ? 1 : 0.3;
+    ctx.globalAlpha = unit.alive !== false ? 1 : 0.3;
 
     const faction = UNIT_DATABASE[unit.faction];
     const color = faction?.color || (unit.player === 1 ? "#3b82f6" : "#dc2626");
