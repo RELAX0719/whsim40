@@ -546,7 +546,7 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
   <div class="setup-header">
     <h1>⚔️ 戰鎚 40,000 ⚔️</h1>
     <p>第十版核心規則 - 軍表配置</p>
-    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.2.4 (2026-02-07)</p>
+    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.2.5 (2026-02-07)</p>
   </div>
 
   <!-- 連線對戰選項 -->
@@ -1462,12 +1462,12 @@ function handleRemoteAction(action) {
         deployUnit.x = action.x;
         deployUnit.y = action.y;
         deployUnit.deployed = true;
-        deployUnit.visible = true;  // 設置可見性
+        deployUnit.visible = true;
         console.warn('[handleRemoteAction] 部署單位:', deployUnit.name, '到', action.x, action.y);
-        // 更新 UI
+        log(`${deployUnit.name} 已部署`, "info");
         updateUnitLists();
       } else {
-        console.warn('[handleRemoteAction] 找不到部署單位:', action.unitId, '可用單位:', gameState.units.map(u => u.id));
+        console.error('[handleRemoteAction] 找不到部署單位:', action.unitId, '本地單位:', gameState.units.map(u => ({id: u.id, player: u.player})));
       }
       break;
   }
@@ -1531,7 +1531,7 @@ function showRemoteDice(diceData) {
   resultEl.innerHTML = `<span class="success-count">${diceData.successCount || 0} 成功</span> / <span class="fail-count">${diceData.failCount || 0} 失敗</span>`;
 
   overlay.classList.add('active');
-  setTimeout(() => overlay.classList.remove('active'), 1500);
+  setTimeout(() => overlay.classList.remove('active'), 3000);  // 增加顯示時間
 }
 
 // 同步戰鬥紀錄到 Firebase
@@ -3387,8 +3387,8 @@ async function showDiceRoll(title, rolls, targetNumber, options = {}) {
     syncDiceRoll(title, diceResults, successCount, failCount);
   }
 
-  // 等待後自動關閉
-  await delay(options.duration || 800);
+  // 等待後自動關閉（增加顯示時間讓玩家看清楚）
+  await delay(options.duration || 2000);
   overlay.classList.remove("active");
 
   return { successes: successCount, criticals: critCount, rolls };
@@ -5519,9 +5519,11 @@ function handleDeployClick(canvasX, canvasY) {
 
   log(`${undeployed.name} 已部署`, "info");
 
-  // 線上模式同步部署
+  // 線上模式同步部署（每次部署都同步完整狀態）
   if (isOnlineMode) {
     sendAction({ type: 'deploy', unitId: undeployed.id, x: canvasX, y: canvasY });
+    // 立即同步遊戲狀態確保對方看到
+    syncGameStateToFirebase();
   }
 
   if (player === 1) {
@@ -6825,7 +6827,7 @@ async function performAttack(attacker, target, weapon, mode) {
 
   // 命中骰子動畫
   if (enableDiceAnimation && hitRolls.length <= 12) {
-    await showDiceRoll(`命中擲骰 (${attacker.name})`, hitRolls, hitNeed, { duration: 600 });
+    await showDiceRoll(`命中擲骰 (${attacker.name})`, hitRolls, hitNeed, { duration: 1500 });
   }
 
   log(`命中擲骰: ${hitRolls.join(", ")} (需要 ${hitNeed}+)`, "info");
@@ -6884,7 +6886,7 @@ async function performAttack(attacker, target, weapon, mode) {
 
   // 致傷骰子動畫
   if (enableDiceAnimation && woundRolls.length <= 12) {
-    await showDiceRoll(`致傷擲骰 (${woundExplanation})`, woundRolls, woundNeed, { duration: 600 });
+    await showDiceRoll(`致傷擲骰 (${woundExplanation})`, woundRolls, woundNeed, { duration: 1500 });
   }
 
   log(`致傷擲骰: ${woundRolls.join(", ")} (${woundExplanation})`, "info");
@@ -6940,7 +6942,7 @@ async function performAttack(attacker, target, weapon, mode) {
 
   // 豁免骰子動畫（注意：豁免是高於才成功，所以失敗的顯示為紅色）
   if (enableDiceAnimation && saveRolls.length <= 12) {
-    await showDiceRoll(`豁免擲骰 (${target.name} ${saveNeed}+)`, saveRolls, saveNeed, { duration: 600 });
+    await showDiceRoll(`豁免擲骰 (${target.name} ${saveNeed}+)`, saveRolls, saveNeed, { duration: 1500 });
   }
 
   log(`豁免擲骰: ${saveRolls.join(", ")} (需要 ${saveNeed}+${target.inCover ? " 含掩護" : ""})`, "info");
