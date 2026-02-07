@@ -84,41 +84,54 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
 .units-list {
   flex: 1;
   overflow-y: auto;
-  padding: 8px;
+  padding: 6px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: 4px;
+  align-content: start;
 }
 
 .unit-item {
   display: flex;
-  gap: 8px;
-  padding: 8px;
-  margin-bottom: 6px;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px;
   background: rgba(0,0,0,0.3);
   border: 2px solid transparent;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
+  position: relative;
 }
-.unit-item:hover { background: rgba(255,255,255,0.05); }
-.unit-item.selected { border-color: var(--gold); background: rgba(251,191,36,0.1); }
+.unit-item:hover { background: rgba(255,255,255,0.1); transform: scale(1.05); }
+.unit-item.selected { border-color: var(--gold); background: rgba(251,191,36,0.15); }
 .unit-item.enemy { border-color: var(--red); }
-.unit-item.dead { opacity: 0.4; pointer-events: none; }
-.unit-item.acted { opacity: 0.6; }
+.unit-item.dead { opacity: 0.3; }
+.unit-item.acted { opacity: 0.5; }
 
 .unit-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 6px;
+  width: 44px;
+  height: 44px;
+  border-radius: 4px;
   background: #1a1a2e;
   overflow: hidden;
   flex-shrink: 0;
 }
 .unit-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
-.unit-info { flex: 1; min-width: 0; }
-.unit-name { font-size: 12px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.unit-stats-mini { font-size: 10px; color: var(--muted); margin-top: 2px; }
-.unit-hp-bar { height: 4px; background: #1a1a2e; border-radius: 2px; margin-top: 4px; overflow: hidden; }
+.unit-info { width: 100%; text-align: center; }
+.unit-name { font-size: 9px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+.unit-stats-mini { display: none; }
+.unit-hp-bar { height: 3px; background: #1a1a2e; border-radius: 2px; margin-top: 2px; overflow: hidden; }
 .unit-hp-fill { height: 100%; background: linear-gradient(90deg, var(--red), var(--green)); transition: width 0.3s; }
+
+.unit-status-icon {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 10px;
+  text-shadow: 0 0 3px #000;
+}
 
 /* Center - Battlefield */
 .battlefield-container {
@@ -164,7 +177,7 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
 .battlefield-wrap {
   flex: 1;
   position: relative;
-  overflow: auto;
+  overflow: hidden;
   min-height: 200px;
   background: linear-gradient(135deg, #1a2a1a 0%, #0f1a0f 100%);
   display: flex;
@@ -529,9 +542,29 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
   .units-panel, .info-panel { width: 240px; }
 }
 @media (max-width: 900px) {
-  .game-main { flex-direction: column; }
-  .units-panel, .info-panel { width: 100%; height: auto; max-height: 200px; }
+  .game-main { flex-direction: column; height: auto; min-height: 100vh; }
+  .units-panel { width: 100%; height: auto; max-height: 180px; order: 1; flex-direction: row; }
+  .units-panel .panel-header { padding: 6px 8px; font-size: 11px; }
+  .units-list { grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); gap: 3px; padding: 4px; }
+  .unit-avatar { width: 40px; height: 40px; }
+  .unit-name { font-size: 8px; }
+  .battlefield-container { width: 100%; min-height: 50vh; order: 2; flex: none; }
+  .battlefield-wrap { min-height: 45vh; }
+  .info-panel { width: 100%; height: auto; max-height: 200px; order: 3; }
   .setup-container { grid-template-columns: 1fr; }
+  .battlefield-toolbar { flex-wrap: wrap; justify-content: center; padding: 6px; }
+  .toolbar-btn { padding: 4px 8px; font-size: 11px; }
+  .action-hint { margin-left: 0; margin-top: 6px; width: 100%; text-align: center; }
+}
+@media (max-width: 600px) {
+  .battlefield-container { min-height: 40vh; }
+  .battlefield-wrap { min-height: 35vh; overflow: visible; }
+  .units-panel { max-height: 140px; }
+  .units-list { grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); gap: 2px; }
+  .unit-avatar { width: 36px; height: 36px; }
+  .unit-name { font-size: 7px; }
+  .info-panel { max-height: 120px; font-size: 11px; }
+  .toolbar-btn { padding: 3px 6px; font-size: 10px; }
 }
 </style>
 
@@ -546,7 +579,7 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
   <div class="setup-header">
     <h1>⚔️ 戰鎚 40,000 ⚔️</h1>
     <p>第十版核心規則 - 軍表配置</p>
-    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.2.5 (2026-02-07)</p>
+    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.2.9 (2026-02-07)</p>
   </div>
 
   <!-- 連線對戰選項 -->
@@ -870,8 +903,11 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
         <p style="color: var(--muted); text-align: center; padding: 20px;">點擊單位查看詳細資訊</p>
       </div>
 
-      <div class="panel-header">戰鬥日誌</div>
-      <div class="combat-log">
+      <div class="panel-header" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="toggleCombatLog()">
+        <span>戰鬥日誌</span>
+        <span id="combatLogToggle" style="font-size: 10px;">▼</span>
+      </div>
+      <div class="combat-log" id="combatLogContainer">
         <div class="log-content" id="logContent"></div>
       </div>
 
@@ -1365,6 +1401,7 @@ function syncGameStateFromFirebase(remoteState) {
   // 更新 UI 元素
   if (typeof updateUnitLists === 'function') updateUnitLists();
   if (typeof updateCPDisplay === 'function') updateCPDisplay();
+  if (typeof updateVPDisplay === 'function') updateVPDisplay();  // 同步VP顯示
   if (typeof updatePhaseIndicator === 'function') updatePhaseIndicator();
   document.getElementById("roundNum").textContent = gameState.round;
   document.getElementById("roundDisplay").textContent = gameState.round;
@@ -2830,8 +2867,8 @@ let viewOffsetY = 0;       // 視圖偏移Y
 let isDragging = false;    // 是否正在拖曳
 let dragStartX = 0;
 let dragStartY = 0;
-const MIN_ZOOM = 0.5;
-const MAX_ZOOM = 3.0;
+const MIN_ZOOM = 0.3;
+const MAX_ZOOM = 4.0;
 const ZOOM_STEP = 0.1;
 
 // ========== 單位圖像緩存 ==========
@@ -5926,20 +5963,32 @@ function gameToScreen(gameX, gameY) {
 
 function resizeCanvas() {
   const wrap = canvas.parentElement;
+  const wrapWidth = wrap.clientWidth || 300;
+  const wrapHeight = wrap.clientHeight || 200;
 
   // 使用固定戰場尺寸（如果已設定）
   if (gameState.canvasWidth && gameState.canvasHeight) {
+    // 計算縮放比例以適應容器
+    const scaleX = wrapWidth / gameState.canvasWidth;
+    const scaleY = wrapHeight / gameState.canvasHeight;
+    const scale = Math.min(scaleX, scaleY, 1);  // 不放大，只縮小
+
+    const displayWidth = gameState.canvasWidth * scale;
+    const displayHeight = gameState.canvasHeight * scale;
+
     canvas.width = gameState.canvasWidth * devicePixelRatio;
     canvas.height = gameState.canvasHeight * devicePixelRatio;
 
-    // 置中顯示
-    canvas.style.width = gameState.canvasWidth + "px";
-    canvas.style.height = gameState.canvasHeight + "px";
+    // 置中顯示（縮放以適應螢幕）
+    canvas.style.width = displayWidth + "px";
+    canvas.style.height = displayHeight + "px";
     canvas.style.margin = "auto";
     canvas.style.display = "block";
   } else {
-    canvas.width = wrap.clientWidth * devicePixelRatio;
-    canvas.height = wrap.clientHeight * devicePixelRatio;
+    canvas.width = wrapWidth * devicePixelRatio;
+    canvas.height = wrapHeight * devicePixelRatio;
+    canvas.style.width = wrapWidth + "px";
+    canvas.style.height = wrapHeight + "px";
   }
 
   ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
@@ -6004,7 +6053,8 @@ function initBattlefield() {
       hasCharged: false,
       hasFought: false,
       inCover: false,
-      battleShocked: false
+      battleShocked: false,
+      battleHistory: []  // 單位戰鬥歷史記錄
     });
   });
 
@@ -6025,7 +6075,8 @@ function initBattlefield() {
       hasCharged: false,
       hasFought: false,
       inCover: false,
-      battleShocked: false
+      battleShocked: false,
+      battleHistory: []  // 單位戰鬥歷史記錄
     });
   });
 
@@ -6093,17 +6144,17 @@ async function handleCanvasClick(x, y) {
     return;
   }
 
-  // 線上模式：檢查是否為自己的回合
-  if (isOnlineMode && !isMyTurn()) {
-    log('等待對手回合結束...', 'info');
-    return;
-  }
-
-  // 檢查是否點擊到單位
+  // 檢查是否點擊到單位（查看資訊永遠允許）
   for (const unit of gameState.units) {
     if (!unit.alive) continue;
     const dist = Math.hypot(x - unit.x, y - unit.y);
     if (dist < 25) {
+      // 線上模式：非自己回合只能查看，不能行動
+      if (isOnlineMode && !isMyTurn()) {
+        selectUnit(unit);  // 允許查看任何單位資訊
+        return;
+      }
+
       if (gameState.currentAction === "shoot" || gameState.currentAction === "fight") {
         // 選擇目標
         if (unit.player !== gameState.currentPlayer) {
@@ -6117,6 +6168,11 @@ async function handleCanvasClick(x, y) {
         return;
       }
     }
+  }
+
+  // 線上模式：非自己回合不能進行其他行動
+  if (isOnlineMode && !isMyTurn()) {
+    return;
   }
 
   // 移動動作
@@ -6303,6 +6359,18 @@ function updateSelectedUnitInfo() {
     ${unit.abilities?.length ? `<div style="margin-top: 8px; font-size: 10px; color: var(--muted);">
       <b>特殊能力:</b> ${unit.abilities.join(", ")}
     </div>` : ""}
+    ${unit.battleHistory?.length ? `
+    <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 8px;">
+      <div style="font-size: 11px; font-weight: bold; color: var(--accent); margin-bottom: 5px;">📜 戰鬥歷史</div>
+      <div style="max-height: 100px; overflow-y: auto; font-size: 10px;">
+        ${unit.battleHistory.slice().reverse().map(h => `
+          <div style="padding: 2px 0; color: ${h.type === 'kill' ? '#22c55e' : h.type === 'death' ? '#ef4444' : h.type === 'damage' ? '#f97316' : '#94a3b8'};">
+            [R${h.round}] ${h.message}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    ` : ""}
   `;
 }
 
@@ -7006,6 +7074,10 @@ async function performAttack(attacker, target, weapon, mode) {
 
   log(`造成 ${totalDamage} 點傷害！`, "damage");
 
+  // 記錄戰鬥歷史
+  addBattleHistory(attacker, `🔫 攻擊 ${target.name}，造成 ${totalDamage} 傷害`, "attack");
+  addBattleHistory(target, `💥 被 ${attacker.name} 攻擊，受到 ${totalDamage} 傷害`, "damage");
+
   // 音效：命中
   playSound('hit');
   if (totalDamage >= 5) {
@@ -7027,6 +7099,10 @@ async function performAttack(attacker, target, weapon, mode) {
     target.currentHP = 0;
     target.alive = false;
     log(`💀 ${target.name} 被消滅！`, "damage");
+
+    // 記錄擊殺歷史
+    addBattleHistory(attacker, `💀 擊殺了 ${target.name}！`, "kill");
+    addBattleHistory(target, `💀 被 ${attacker.name} 消滅`, "death");
 
     // 音效：死亡
     playSound('death');
@@ -7391,8 +7467,7 @@ function endTurn() {
     // 音效：新回合
     playSound('roundStart');
 
-    // 新回合清空日誌（保持簡潔）
-    clearLog();
+    // 新回合不再清空日誌，保留歷史記錄
     log(`══════ 第 ${gameState.round} 回合開始 ══════`, "phase");
 
     // 每回合開始時清理已死亡單位（減少陣列大小以提升性能）
@@ -7561,18 +7636,23 @@ function updateUnitLists() {
     const div = document.createElement("div");
     div.className = classes;
     div.onclick = () => selectUnit(unit);
-    const statusIcons = [
-      gameState.phase === "deployment" && !unit.deployed ? "📍" : "",
-      gameState.phase === "deployment" && unit.deployed ? "✓" : "",
-      unit.inCover ? "🛡️" : "",
-      unit.battleShocked ? "💀" : ""
-    ].filter(Boolean).join(" ");
+    div.title = `${unit.name}\nHP: ${unit.currentHP}/${unit.maxHP}`;
+
+    // 狀態圖標
+    let statusIcon = "";
+    if (gameState.phase === "deployment" && !unit.deployed) statusIcon = "📍";
+    else if (unit.battleShocked) statusIcon = "💀";
+    else if (unit.inCover) statusIcon = "🛡️";
+    else if (gameState.phase === "deployment" && unit.deployed) statusIcon = "✓";
+
+    // 簡短名稱（取前4個字）
+    const shortName = unit.name.length > 6 ? unit.name.substring(0, 5) + ".." : unit.name;
 
     div.innerHTML = `
+      ${statusIcon ? `<div class="unit-status-icon">${statusIcon}</div>` : ""}
       <div class="unit-avatar"><img src="${unit.img}" onerror="this.style.display='none'"></div>
       <div class="unit-info">
-        <div class="unit-name">${unit.name}</div>
-        <div class="unit-stats-mini">HP: ${unit.currentHP}/${unit.maxHP} ${statusIcons}</div>
+        <div class="unit-name">${shortName}</div>
         <div class="unit-hp-bar"><div class="unit-hp-fill" style="width: ${hpPct}%"></div></div>
       </div>
     `;
@@ -7619,6 +7699,42 @@ function clearLog() {
   const logContent = document.getElementById("logContent");
   if (logContent) {
     logContent.innerHTML = "";
+  }
+}
+
+// 切換戰鬥日誌顯示
+let combatLogVisible = true;
+function toggleCombatLog() {
+  const container = document.getElementById("combatLogContainer");
+  const toggle = document.getElementById("combatLogToggle");
+  if (!container) return;
+
+  combatLogVisible = !combatLogVisible;
+  if (combatLogVisible) {
+    container.style.display = "block";
+    toggle.textContent = "▼";
+  } else {
+    container.style.display = "none";
+    toggle.textContent = "▶";
+    // 關閉時清空日誌
+    clearLog();
+  }
+}
+
+// 添加單位戰鬥歷史記錄
+function addBattleHistory(unit, message, type = "info") {
+  if (!unit || !unit.battleHistory) return;
+  unit.battleHistory.push({
+    round: gameState.round,
+    phase: gameState.phase,
+    message: message,
+    type: type,
+    timestamp: Date.now()
+  });
+  // 限制歷史記錄數量
+  const MAX_HISTORY = 20;
+  if (unit.battleHistory.length > MAX_HISTORY) {
+    unit.battleHistory.shift();
   }
 }
 
