@@ -546,7 +546,7 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
   <div class="setup-header">
     <h1>⚔️ 戰鎚 40,000 ⚔️</h1>
     <p>第十版核心規則 - 軍表配置</p>
-    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.1.9 (2026-02-07)</p>
+    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.2.3 (2026-02-07)</p>
   </div>
 
   <!-- 連線對戰選項 -->
@@ -1028,7 +1028,7 @@ async function createRoom() {
   isHost = true;
   onlinePlayerId = 1;
   isOnlineMode = true;  // 確保設為線上模式
-  console.log('[createRoom] 建立房間:', { currentRoomCode, isHost, onlinePlayerId, isOnlineMode });
+  console.warn('[createRoom] 建立房間:', { currentRoomCode, isHost, onlinePlayerId, isOnlineMode });
 
   roomRef = database.ref('rooms/' + currentRoomCode);
 
@@ -1091,7 +1091,7 @@ async function joinRoom() {
   isHost = false;
   onlinePlayerId = 2;
   isOnlineMode = true;  // 確保設為線上模式
-  console.log('[joinRoom] 加入房間:', { currentRoomCode, isHost, onlinePlayerId, isOnlineMode });
+  console.warn('[joinRoom] 加入房間:', { currentRoomCode, isHost, onlinePlayerId, isOnlineMode });
 
   // 加入房間
   await roomRef.child('players/2').set({
@@ -1169,7 +1169,7 @@ function listenToRoom() {
           resizeCanvas();
           initBattlefield();
           gameInitialized = true;  // 標記遊戲已初始化完成
-          console.log('[Player 2] 遊戲初始化完成，單位數量:', gameState.units.length);
+          console.warn('[Player 2] 遊戲初始化完成，單位數量:', gameState.units.length);
 
           // 初始化部署狀態（與 startDeployPhase 一致）
           gameState.phase = "deployment";
@@ -1183,6 +1183,7 @@ function listenToRoom() {
 
           log('=== 房主已開始遊戲 ===', 'phase');
           log('=== 部署階段 ===', 'phase');
+          log('請在右側部署區部署你的單位', 'info');
           updatePhaseDisplay();
           updateDeployButtons();
           updateCPDisplay();
@@ -1220,7 +1221,7 @@ function listenToRoom() {
         console.log('[listenToRoom] 等待遊戲初始化完成...');
       } else if (shouldSync) {
         lastGameStateTimestamp = data.gameState.timestamp;
-        console.log('[listenToRoom] 同步遊戲狀態:', {
+        console.warn('[listenToRoom] 同步遊戲狀態:', {
           phase: data.gameState.phase,
           currentPlayer: data.gameState.currentPlayer,
           myId: onlinePlayerId,
@@ -1241,7 +1242,7 @@ function listenToRoom() {
         console.log('[listenToRoom] 動作等待遊戲初始化...');
       } else if (shouldHandle) {
         lastActionTimestamp = data.lastAction.timestamp;
-        console.log('[listenToRoom] 收到遠端動作:', data.lastAction);
+        console.warn('[listenToRoom] 收到遠端動作:', data.lastAction);
         handleRemoteAction(data.lastAction);
       }
     }
@@ -1349,7 +1350,7 @@ function syncGameStateFromFirebase(remoteState) {
       }
     });
 
-    console.log('[syncGameState] 同步完成:', {
+    console.warn('[syncGameState] 同步完成:', {
       遠端單位數: remoteState.units.length,
       本地單位數: gameState.units.length,
       成功同步: syncedCount,
@@ -1374,25 +1375,22 @@ function syncGameStateFromFirebase(remoteState) {
   const detEl = document.getElementById("currentDetachment");
   if (detEl) detEl.textContent = det ? det.name : "";
 
-  console.log('[syncGameStateFromFirebase] 狀態更新:', {
+  console.warn('[syncGameStateFromFirebase] 狀態更新:', {
     phase: gameState.phase,
     currentPlayer: gameState.currentPlayer,
     isMyTurn: isMyTurn(),
     myId: onlinePlayerId
   });
 
-  // 提示是否為自己的回合，並啟動回合
+  // 如果現在是自己的回合，觸發回合開始
   if (isMyTurn()) {
-    log(`輪到你的回合！`, 'phase', false);  // 本地提示不同步
-
-    // 如果是指揮階段，啟動指揮階段流程（使用 executeCommandPhase 避免重設 phase）
+    log(`輪到你的回合！`, 'phase', false);
     if (gameState.phase === 'command') {
       const isAITurn = (gameState.currentPlayer === 1 && ai1Enabled) || (gameState.currentPlayer === 2 && ai2Enabled);
-      console.log('[syncGameStateFromFirebase] 觸發回合:', { isAITurn, ai1Enabled, ai2Enabled });
+      console.warn('[syncGameStateFromFirebase] 觸發我的回合:', { isAITurn, currentPlayer: gameState.currentPlayer, myId: onlinePlayerId });
       if (isAITurn) {
         setTimeout(() => runAITurn(), 500);
       } else {
-        // 使用 executeCommandPhase 而不是 startCommandPhase，因為 phase 已經是 command
         setTimeout(() => executeCommandPhase(), 100);
       }
     }
@@ -1412,7 +1410,7 @@ function sendAction(action) {
     timestamp: Date.now()  // 使用客戶端時間確保一致性
   };
 
-  console.log('[sendAction] 發送動作:', actionData);
+  console.warn('[sendAction] 發送動作:', actionData);
   roomRef.child('lastAction').set(actionData);
 
   // 同步遊戲狀態
@@ -1423,7 +1421,7 @@ function sendAction(action) {
 function handleRemoteAction(action) {
   if (!action || action.player === onlinePlayerId) return;
 
-  console.log('[handleRemoteAction] 處理動作:', action.type, action);
+  console.warn('[handleRemoteAction] 處理動作:', action.type, action);
 
   switch (action.type) {
     case 'move':
@@ -1432,7 +1430,7 @@ function handleRemoteAction(action) {
         moveUnit.x = action.x;
         moveUnit.y = action.y;
         moveUnit.hasMoved = true;
-        console.log('[handleRemoteAction] 移動單位:', moveUnit.name, '到', action.x, action.y);
+        console.warn('[handleRemoteAction] 移動單位:', moveUnit.name, '到', action.x, action.y);
       } else {
         console.warn('[handleRemoteAction] 找不到移動單位:', action.unitId);
       }
@@ -1452,7 +1450,7 @@ function handleRemoteAction(action) {
         deployUnit.y = action.y;
         deployUnit.deployed = true;
         deployUnit.visible = true;  // 設置可見性
-        console.log('[handleRemoteAction] 部署單位:', deployUnit.name, '到', action.x, action.y);
+        console.warn('[handleRemoteAction] 部署單位:', deployUnit.name, '到', action.x, action.y);
         // 更新 UI
         updateUnitLists();
       } else {
@@ -1468,6 +1466,18 @@ function handleRemoteAction(action) {
 function isMyTurn() {
   if (!isOnlineMode) return true;
   return gameState.currentPlayer === onlinePlayerId;
+}
+
+// 檢查是否可以操作自己的單位
+function canControlUnit(unit) {
+  if (!isOnlineMode) return true;
+  // 線上模式：只能操作自己的單位
+  return unit && unit.player === onlinePlayerId;
+}
+
+// 檢查是否為主機（負責邏輯運算）
+function isGameHost() {
+  return !isOnlineMode || isHost;
 }
 
 // 同步骰子結果到 Firebase
@@ -3474,7 +3484,7 @@ async function runAITurn() {
   const isAI = (gameState.currentPlayer === 1 && ai1Enabled) || (gameState.currentPlayer === 2 && ai2Enabled);
   if (!isAI) return;
 
-  console.log('[runAITurn] 開始 AI 回合:', { currentPlayer: gameState.currentPlayer, isOnlineMode });
+  console.warn('[runAITurn] 開始 AI 回合:', { currentPlayer: gameState.currentPlayer, isOnlineMode });
 
   // 清除之前的特效
   clearAllVisualEffects();
@@ -3536,7 +3546,7 @@ async function runAITurn() {
   }
 
   log("🤖 AI回合結束", "info");
-  console.log('[runAITurn] AI 回合結束');
+  console.warn('[runAITurn] AI 回合結束');
   await delay(500);
   endTurn();
 }
@@ -4661,13 +4671,14 @@ function findNearestCover(unit) {
 
 function calculateThreat(unit) {
   let threat = 0;
+  if (!unit || !unit.weapons) return 0;  // 防止 undefined 錯誤
   if (unit.weapons.ranged) {
     const w = unit.weapons.ranged;
-    threat += (typeof w.A === 'number' ? w.A : 3) * w.S * (1 + Math.abs(w.AP || 0));
+    threat += (typeof w.A === 'number' ? w.A : 3) * (w.S || 4) * (1 + Math.abs(w.AP || 0));
   }
   if (unit.weapons.melee) {
     const w = unit.weapons.melee;
-    threat += (typeof w.A === 'number' ? w.A : 3) * w.S * (1 + Math.abs(w.AP || 0)) * 0.8;
+    threat += (typeof w.A === 'number' ? w.A : 3) * (w.S || 4) * (1 + Math.abs(w.AP || 0)) * 0.8;
   }
   return threat / 100;
 }
@@ -5262,7 +5273,7 @@ function loadEnemyArmy(armyData, player) {
   if (!armyData || !armyData.roster) return;
 
   armyRosters[player] = armyData.roster;
-  console.log('[loadEnemyArmy] 載入玩家', player, '軍隊:', armyData.roster.length, '個單位');
+  console.warn('[loadEnemyArmy] 載入玩家', player, '軍隊:', armyData.roster.length, '個單位');
 
   // 設定對手的陣營
   const factionSelect = document.getElementById(`p${player}Faction`);
@@ -5276,7 +5287,7 @@ function loadEnemyArmy(armyData, player) {
   if (detachmentSelect && armyData.detachment) {
     detachmentSelect.value = armyData.detachment;
     selectDetachment(player);  // 應用種族規則
-    console.log('[loadEnemyArmy] 載入玩家', player, '種族規則:', armyData.detachment);
+    console.warn('[loadEnemyArmy] 載入玩家', player, '種族規則:', armyData.detachment);
   }
 }
 
@@ -5287,7 +5298,7 @@ function continueStartBattle() {
   resizeCanvas();
   initBattlefield();
   gameInitialized = true;  // 標記遊戲已初始化完成
-  console.log('[Host] 遊戲初始化完成，單位數量:', gameState.units.length);
+  console.warn('[Host] 遊戲初始化完成，單位數量:', gameState.units.length);
 
   gameState.phase = "command";
   gameState.round = 1;
@@ -5447,17 +5458,18 @@ function autoDeployIfNeeded() {
 }
 
 function handleDeployClick(canvasX, canvasY) {
-  // 線上模式：直接使用自己的玩家ID
-  const player = isOnlineMode ? onlinePlayerId : gameState.deploy.deployingPlayer;
-
-  // 線上模式：每個玩家部署自己的單位
-  if (isOnlineMode) {
-    console.log('[deploy] 線上模式部署:', { player, onlinePlayerId });
-  }
-
   const w = gameState.canvasWidth || canvas.getBoundingClientRect().width;
-  // deployZone 已經包含縮放
   const deployZoneWidth = gameState.deployZone || 12 * INCH;
+
+  // 線上模式：每個玩家只能部署自己的單位
+  // 本地模式：根據當前部署玩家
+  let player;
+  if (isOnlineMode) {
+    player = onlinePlayerId;  // 只能部署自己的單位
+    console.warn('[deploy] 線上模式部署:', { player, onlinePlayerId, 點擊位置: canvasX });
+  } else {
+    player = gameState.deploy.deployingPlayer;
+  }
 
   // 檢查是否在正確的部署區內
   let inDeployZone = false;
@@ -5466,9 +5478,8 @@ function handleDeployClick(canvasX, canvasY) {
   } else if (player === 2 && canvasX > w - deployZoneWidth) {
     inDeployZone = true;
   }
-
   if (!inDeployZone) {
-    log(`請在玩家${player === 1 ? "一" : "二"}的部署區內點擊`, "info");
+    log(`請在玩家${player === 1 ? "一（左側）" : "二（右側）"}的部署區內點擊`, "info");
     return;
   }
 
@@ -5954,7 +5965,7 @@ function initBattlefield() {
   // 初始化單位
   gameState.units = [];
 
-  console.log('[initBattlefield] 初始化戰場:', {
+  console.warn('[initBattlefield] 初始化戰場:', {
     玩家1軍隊數量: armyRosters[1]?.length || 0,
     玩家2軍隊數量: armyRosters[2]?.length || 0,
     isOnlineMode,
@@ -6023,7 +6034,7 @@ function initBattlefield() {
   log(`戰場: ${sizeConfig.name} (${sizeConfig.width}" x ${sizeConfig.height}")`, "info");
   log(`場景: ${mapConfig.name}`, "info");
 
-  console.log('[initBattlefield] 戰場初始化完成:', {
+  console.warn('[initBattlefield] 戰場初始化完成:', {
     總單位數: gameState.units.length,
     玩家1單位: gameState.units.filter(u => u.player === 1).length,
     玩家2單位: gameState.units.filter(u => u.player === 2).length,
@@ -6061,15 +6072,15 @@ function setupCanvasEvents() {
 }
 
 async function handleCanvasClick(x, y) {
-  // 部署階段處理（線上模式雙方都可以部署自己的單位）
+  // 部署階段處理
   if (gameState.phase === "deployment") {
     handleDeployClick(x, y);
     return;
   }
 
-  // 線上模式：非部署階段檢查是否為自己的回合
+  // 線上模式：檢查是否為自己的回合
   if (isOnlineMode && !isMyTurn()) {
-    log('等待對手行動...', 'info');
+    log('等待對手回合結束...', 'info');
     return;
   }
 
@@ -7088,7 +7099,7 @@ function checkCover(unit) {
 // ========== 階段控制 ==========
 // 執行指揮階段的實際操作（不設定 phase，供線上模式使用）
 async function executeCommandPhase() {
-  console.log('[executeCommandPhase] 開始執行指揮階段');
+  console.warn('[executeCommandPhase] 開始執行指揮階段');
 
   // 清除之前的特效
   clearAllVisualEffects();
@@ -7296,9 +7307,9 @@ function scorePrimary(player) {
 }
 
 async function nextPhase() {
-  // 線上模式：只有當前玩家可以切換階段
+  // 線上模式：只有當前回合的玩家可以切換階段
   if (isOnlineMode && !isMyTurn()) {
-    log('等待對手行動...', 'info');
+    log('等待對手回合...', 'info');
     return;
   }
 
@@ -7333,9 +7344,9 @@ async function nextPhase() {
 }
 
 function endTurn() {
-  // 線上模式檢查是否為自己的回合
+  // 線上模式：只有當前回合的玩家可以結束回合
   if (isOnlineMode && !isMyTurn()) {
-    log('不是你的回合！', 'miss');
+    log('等待對手回合...', 'info');
     return;
   }
 
@@ -7406,31 +7417,31 @@ function endTurn() {
 
   // 線上模式處理
   if (isOnlineMode) {
-    // 設定 phase 為 command，這樣對方同步時能正確觸發回合
+    // 設定 phase 為 command
     gameState.phase = "command";
     updatePhaseDisplay();
 
-    // 同步狀態到 Firebase（包含 phase = command）
+    // 同步狀態到 Firebase
     sendAction({ type: 'endTurn' });
     syncGameStateToFirebase();
 
-    console.log('[endTurn] 線上模式:', {
+    console.warn('[endTurn] 線上模式:', {
       currentPlayer: gameState.currentPlayer,
+      myId: onlinePlayerId,
       isMyTurn: isMyTurn(),
       isAITurn: isAITurn,
       phase: gameState.phase
     });
 
-    // 如果是自己的回合，開始行動
+    // 如果現在是自己的回合，開始行動
     if (isMyTurn()) {
       if (isAITurn) {
         setTimeout(() => runAITurn(), 500);
       } else {
-        // 直接開始指揮階段的實際操作（phase已設定）
         setTimeout(() => executeCommandPhase(), 100);
       }
     }
-    // 不是自己的回合：等待對手（對方會通過 syncGameStateFromFirebase 觸發）
+    // 對方的回合：等待對方同步
     return;
   }
 
