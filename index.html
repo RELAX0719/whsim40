@@ -580,7 +580,7 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
   <div class="setup-header">
     <h1>⚔️ 戰鎚 40,000 ⚔️</h1>
     <p>第十版核心規則 - 軍表配置</p>
-    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.4.0 (2026-02-07)</p>
+    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.4.1 (2026-02-07)</p>
   </div>
 
   <!-- 連線對戰選項 -->
@@ -1701,11 +1701,13 @@ const INCH = 15;
 const GRID_SIZE = 25;  // 網格吸附大小（像素），用於單位定位
 let maxPoints = 1000; // 可調整的點數上限
 
-// 將座標吸附到網格
+// 將座標吸附到網格（根據畫布縮放調整網格大小）
 function snapToGrid(x, y) {
+  const canvasScale = gameState.canvasScale || 1;
+  const scaledGridSize = GRID_SIZE * canvasScale;
   return {
-    x: Math.round(x / GRID_SIZE) * GRID_SIZE,
-    y: Math.round(y / GRID_SIZE) * GRID_SIZE
+    x: Math.round(x / scaledGridSize) * scaledGridSize,
+    y: Math.round(y / scaledGridSize) * scaledGridSize
   };
 }
 
@@ -3000,7 +3002,9 @@ function getUnitBaseSize(unit) {
   const keywords = unit.keywords || [];
   const name = unit.name || "";
   const stats = unit.stats || {};
-  const scale = INCH / 10; // 根據INCH縮放
+  // 根據INCH和畫布縮放計算單位大小
+  const canvasScale = gameState.canvasScale || 1;
+  const scale = (INCH / 10) * canvasScale;
 
   // 泰坦級 (130mm+ / 5"+) - 最大
   if (keywords.includes("Titanic") || name.includes("金字塔") || name.includes("Monolith") ||
@@ -5079,14 +5083,26 @@ function syncArmyToFirebase(player) {
 
   console.log('[syncArmy] 上傳軍隊:', roster.length, '個單位');
 
-  // 清理資料，移除所有 undefined 值
+  // 清理資料，移除所有 undefined 值，保留完整單位資料
   const cleanRoster = roster.map(u => {
+    // 正確處理武器物件 {ranged, melee} 結構
+    let cleanWeapons = {};
+    if (u.weapons) {
+      if (u.weapons.ranged) {
+        cleanWeapons.ranged = JSON.parse(JSON.stringify(u.weapons.ranged));
+      }
+      if (u.weapons.melee) {
+        cleanWeapons.melee = JSON.parse(JSON.stringify(u.weapons.melee));
+      }
+    }
+
     const clean = {
       id: u.id || '',
       name: u.name || '',
       points: u.points || 0,
+      faction: u.faction || '',  // 確保陣營資訊也同步
       stats: u.stats ? JSON.parse(JSON.stringify(u.stats)) : {},
-      weapons: Array.isArray(u.weapons) ? u.weapons.map(w => JSON.parse(JSON.stringify(w || {}))) : [],
+      weapons: cleanWeapons,
       abilities: Array.isArray(u.abilities) ? u.abilities.filter(a => a !== undefined) : [],
       keywords: Array.isArray(u.keywords) ? u.keywords.filter(k => k !== undefined) : [],
       inv: u.inv !== undefined ? u.inv : null,
@@ -6524,6 +6540,12 @@ async function handleCanvasClick(x, y) {
 
 // ========== 選擇單位 ==========
 function selectUnit(unit) {
+  // 安全檢查：確保單位資料完整
+  if (!unit || !unit.id) {
+    console.warn('[selectUnit] 無效單位');
+    return;
+  }
+
   gameState.selectedUnit = unit;
   playSound('select'); // 音效：選擇
 
@@ -6531,7 +6553,8 @@ function selectUnit(unit) {
   const phase = gameState.phase;
   const isMyUnit = unit.player === gameState.currentPlayer;
 
-  if (isMyUnit) {
+  // 確保單位有完整資料才設定動作
+  if (isMyUnit && unit.stats && unit.weapons) {
     if (phase === "movement" && !unit.hasMoved) {
       gameState.currentAction = "move";
       setHint(`點擊戰場移動 ${unit.name}（最大 ${unit.stats.M}"）`);
@@ -6550,7 +6573,11 @@ function selectUnit(unit) {
     }
   } else {
     gameState.currentAction = null;
-    setHint(`這是敵方單位`);
+    if (!isMyUnit) {
+      setHint(`查看敵方單位: ${unit.name}`);
+    } else {
+      setHint(`${unit.name || '單位'} 資料載入中...`);
+    }
   }
 
   updateSelectedUnitInfo();
@@ -8263,15 +8290,17 @@ function render() {
     viewOffsetY * devicePixelRatio
   );
 
-  // 繪製網格（使用 GRID_SIZE 常數）
+  // 繪製網格（根據畫布縮放調整網格大小）
+  const canvasScale = gameState.canvasScale || 1;
+  const scaledGridSize = GRID_SIZE * canvasScale;
   ctx.strokeStyle = "rgba(255,255,255,0.1)";
   ctx.lineWidth = 1;
   ctx.beginPath();
-  for (let x = 0; x < w; x += GRID_SIZE) {
+  for (let x = 0; x < w; x += scaledGridSize) {
     ctx.moveTo(x, 0);
     ctx.lineTo(x, h);
   }
-  for (let y = 0; y < h; y += GRID_SIZE) {
+  for (let y = 0; y < h; y += scaledGridSize) {
     ctx.moveTo(0, y);
     ctx.lineTo(w, y);
   }
@@ -8279,10 +8308,10 @@ function render() {
 
   // 繪製網格交叉點（更清晰的定位參考）
   ctx.fillStyle = "rgba(255,255,255,0.15)";
-  for (let x = 0; x <= w; x += GRID_SIZE) {
-    for (let y = 0; y <= h; y += GRID_SIZE) {
+  for (let x = 0; x <= w; x += scaledGridSize) {
+    for (let y = 0; y <= h; y += scaledGridSize) {
       ctx.beginPath();
-      ctx.arc(x, y, 2, 0, Math.PI * 2);
+      ctx.arc(x, y, 2 * canvasScale, 0, Math.PI * 2);
       ctx.fill();
     }
   }
