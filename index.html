@@ -580,7 +580,7 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
   <div class="setup-header">
     <h1>⚔️ 戰鎚 40,000 ⚔️</h1>
     <p>第十版核心規則 - 軍表配置</p>
-    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.4.1 (2026-02-07)</p>
+    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.4.2 (2026-02-07)</p>
   </div>
 
   <!-- 連線對戰選項 -->
@@ -1407,8 +1407,16 @@ function syncGameStateFromFirebase(remoteState) {
   gameState.phase = remoteState.phase;
   gameState.round = remoteState.round;
   gameState.currentPlayer = remoteState.currentPlayer;
-  gameState.vp = remoteState.vp || { 1: 0, 2: 0 };
-  gameState.cp = remoteState.cp || { 1: 0, 2: 0 };
+
+  // VP 和 CP 只取較大值，防止被較舊的狀態覆蓋
+  if (remoteState.vp) {
+    gameState.vp[1] = Math.max(gameState.vp[1] || 0, remoteState.vp[1] || 0);
+    gameState.vp[2] = Math.max(gameState.vp[2] || 0, remoteState.vp[2] || 0);
+  }
+  if (remoteState.cp) {
+    // CP 可能會消耗，所以這裡要特殊處理：取遠端值（假設遠端是較新的）
+    gameState.cp = remoteState.cp;
+  }
   if (remoteState.deploy) {
     gameState.deploy = remoteState.deploy;
   }
@@ -1701,13 +1709,11 @@ const INCH = 15;
 const GRID_SIZE = 25;  // 網格吸附大小（像素），用於單位定位
 let maxPoints = 1000; // 可調整的點數上限
 
-// 將座標吸附到網格（根據畫布縮放調整網格大小）
+// 將座標吸附到網格（使用固定邏輯尺寸）
 function snapToGrid(x, y) {
-  const canvasScale = gameState.canvasScale || 1;
-  const scaledGridSize = GRID_SIZE * canvasScale;
   return {
-    x: Math.round(x / scaledGridSize) * scaledGridSize,
-    y: Math.round(y / scaledGridSize) * scaledGridSize
+    x: Math.round(x / GRID_SIZE) * GRID_SIZE,
+    y: Math.round(y / GRID_SIZE) * GRID_SIZE
   };
 }
 
@@ -3002,9 +3008,9 @@ function getUnitBaseSize(unit) {
   const keywords = unit.keywords || [];
   const name = unit.name || "";
   const stats = unit.stats || {};
-  // 根據INCH和畫布縮放計算單位大小
-  const canvasScale = gameState.canvasScale || 1;
-  const scale = (INCH / 10) * canvasScale;
+  // 使用固定邏輯尺寸（所有裝置一致）
+  // canvasScale 現在固定為 1.0，顯示縮放由 CSS 處理
+  const scale = INCH / 10;
 
   // 泰坦級 (130mm+ / 5"+) - 最大
   if (keywords.includes("Titanic") || name.includes("金字塔") || name.includes("Monolith") ||
@@ -6221,24 +6227,31 @@ function resizeCanvas() {
   const wrapWidth = wrap.clientWidth || 300;
   const wrapHeight = wrap.clientHeight || 200;
 
-  // 使用固定戰場尺寸（如果已設定）
+  // 使用固定邏輯尺寸（所有裝置一致）
   if (gameState.canvasWidth && gameState.canvasHeight) {
-    // 計算縮放比例以適應容器
-    const scaleX = wrapWidth / gameState.canvasWidth;
-    const scaleY = wrapHeight / gameState.canvasHeight;
-    const scale = Math.min(scaleX, scaleY, 1);  // 不放大，只縮小
+    const logicalW = gameState.canvasWidth;
+    const logicalH = gameState.canvasHeight;
 
-    const displayWidth = gameState.canvasWidth * scale;
-    const displayHeight = gameState.canvasHeight * scale;
+    // 計算顯示縮放比例以適應容器
+    const scaleX = wrapWidth / logicalW;
+    const scaleY = wrapHeight / logicalH;
+    const displayScale = Math.min(scaleX, scaleY, 2);  // 最大放大2倍
 
-    canvas.width = gameState.canvasWidth * devicePixelRatio;
-    canvas.height = gameState.canvasHeight * devicePixelRatio;
+    const displayWidth = logicalW * displayScale;
+    const displayHeight = logicalH * displayScale;
 
-    // 置中顯示（縮放以適應螢幕）
+    // Canvas 使用邏輯尺寸（乘以 devicePixelRatio 確保清晰）
+    canvas.width = logicalW * devicePixelRatio;
+    canvas.height = logicalH * devicePixelRatio;
+
+    // CSS 縮放以適應螢幕
     canvas.style.width = displayWidth + "px";
     canvas.style.height = displayHeight + "px";
     canvas.style.margin = "auto";
     canvas.style.display = "block";
+
+    // 更新顯示縮放值
+    gameState.displayScale = displayScale;
   } else {
     canvas.width = wrapWidth * devicePixelRatio;
     canvas.height = wrapHeight * devicePixelRatio;
@@ -6262,24 +6275,31 @@ function initBattlefield() {
   const targetW = sizeConfig.width * INCH;
   const targetH = sizeConfig.height * INCH;
 
-  // 取得容器尺寸並計算縮放
+  // 使用固定的邏輯畫布尺寸（所有裝置一致）
+  // 這確保所有玩家使用相同的遊戲座標系統
+  const w = targetW;  // 邏輯寬度（不縮放）
+  const h = targetH;  // 邏輯高度（不縮放）
+
+  // 設定 canvas 邏輯尺寸（所有裝置相同）
+  gameState.canvasScale = 1.0;  // 邏輯座標不縮放
+  gameState.canvasWidth = w;
+  gameState.canvasHeight = h;
+  gameState.deployZone = sizeConfig.deployZone * INCH; // 部署區使用邏輯尺寸
+
+  // 計算顯示縮放（用於 CSS，不影響遊戲邏輯）
   const container = canvas.parentElement;
   const containerW = container.clientWidth || 800;
   const containerH = container.clientHeight || 600;
+  const displayScaleX = containerW / w;
+  const displayScaleY = containerH / h;
+  const displayScale = Math.min(displayScaleX, displayScaleY, 1.5);
+  gameState.displayScale = displayScale;  // 僅用於 CSS 顯示
 
-  // 計算適合的縮放比例（保持比例）
-  const scaleX = containerW / targetW;
-  const scaleY = containerH / targetH;
-  const scale = Math.min(scaleX, scaleY, 1.5); // 最大放大1.5倍
-
-  const w = targetW * scale;
-  const h = targetH * scale;
-
-  // 設定 canvas 實際渲染尺寸（應用縮放）
-  gameState.canvasScale = scale;
-  gameState.canvasWidth = w;
-  gameState.canvasHeight = h;
-  gameState.deployZone = sizeConfig.deployZone * INCH * scale; // 部署區也要縮放
+  console.warn('[initBattlefield] 戰場設定:', {
+    邏輯尺寸: `${w}x${h}`,
+    容器尺寸: `${containerW}x${containerH}`,
+    顯示縮放: displayScale.toFixed(2)
+  });
 
   // 初始化單位
   gameState.units = [];
@@ -8290,17 +8310,15 @@ function render() {
     viewOffsetY * devicePixelRatio
   );
 
-  // 繪製網格（根據畫布縮放調整網格大小）
-  const canvasScale = gameState.canvasScale || 1;
-  const scaledGridSize = GRID_SIZE * canvasScale;
+  // 繪製網格（使用固定邏輯尺寸）
   ctx.strokeStyle = "rgba(255,255,255,0.1)";
   ctx.lineWidth = 1;
   ctx.beginPath();
-  for (let x = 0; x < w; x += scaledGridSize) {
+  for (let x = 0; x < w; x += GRID_SIZE) {
     ctx.moveTo(x, 0);
     ctx.lineTo(x, h);
   }
-  for (let y = 0; y < h; y += scaledGridSize) {
+  for (let y = 0; y < h; y += GRID_SIZE) {
     ctx.moveTo(0, y);
     ctx.lineTo(w, y);
   }
@@ -8308,10 +8326,10 @@ function render() {
 
   // 繪製網格交叉點（更清晰的定位參考）
   ctx.fillStyle = "rgba(255,255,255,0.15)";
-  for (let x = 0; x <= w; x += scaledGridSize) {
-    for (let y = 0; y <= h; y += scaledGridSize) {
+  for (let x = 0; x <= w; x += GRID_SIZE) {
+    for (let y = 0; y <= h; y += GRID_SIZE) {
       ctx.beginPath();
-      ctx.arc(x, y, 2 * canvasScale, 0, Math.PI * 2);
+      ctx.arc(x, y, 2, 0, Math.PI * 2);
       ctx.fill();
     }
   }
