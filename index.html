@@ -7296,6 +7296,18 @@ async function aiCommandPhase() {
   const controlCount = gameState.objectives.filter(o => o.control === aiPlayer).length;
   if (gain > 0) {
     log(`🏆 AI-${aiPlayer}控制 ${controlCount} 個目標 → +${gain} VP (總計: ${prevVP} → ${gameState.vp[aiPlayer]})`, "phase");
+    // 在控制的目標上顯示VP獲得提示
+    const controlledObjs = gameState.objectives.filter(o => o.control === aiPlayer);
+    controlledObjs.forEach((obj, i) => {
+      setTimeout(() => {
+        const color = aiPlayer === 1 ? "#3b82f6" : "#dc2626";
+        showFloatingText(obj.x, obj.y - 30, `+${Math.ceil(gain / controlledObjs.length)} VP`, {
+          color: color,
+          fontSize: 22,
+          duration: 2500
+        });
+      }, i * 200);
+    });
   } else {
     log(`⚠️ AI-${aiPlayer}未控制任何目標，本回合+0 VP`, "info");
   }
@@ -7930,9 +7942,25 @@ function aiSelectMoveTarget(unit) {
   // 評估當前局勢
   const gameEval = evaluateGameState(aiPlayer);
 
+  // 獲取組合專屬戰術
+  const tactics = getArchetypeTactics(aiPlayer, unit, { phase: "movement" });
+
   if (aiDifficulty === "easy") {
     // 簡單：隨機移動
     return { x: unit.x + (Math.random() - 0.5) * inchToPixels(unit.stats.M), y: unit.y + (Math.random() - 0.5) * inchToPixels(unit.stats.M) };
+  }
+
+  // ===== 組合戰術修正 =====
+  // 根據組合類型調整移動風格
+  if (tactics.moveStyle === "aggressive" && aiDifficulty !== "easy") {
+    // 進攻型：優先靠近敵人
+    const nearestEnemy = enemies.sort((a, b) =>
+      Math.hypot(a.x - unit.x, a.y - unit.y) - Math.hypot(b.x - unit.x, b.y - unit.y)
+    )[0];
+    if (nearestEnemy && tactics.chargeAggression > Math.random()) {
+      log(`🔥 ${unit.name} 進攻戰術: 接近敵人`, "info");
+      return { x: nearestEnemy.x, y: nearestEnemy.y };
+    }
   }
 
   // ===== 策略性AI（普通/困難）=====
@@ -8492,8 +8520,17 @@ async function aiChargePhase() {
 function shouldCharge(unit, enemies) {
   if (aiDifficulty === "easy") return Math.random() > 0.5;
 
+  // 獲取組合專屬戰術
+  const tactics = getArchetypeTactics(unit.player, unit, { phase: "charge" });
+
   // 近戰專精單位優先衝鋒
   if (!unit.weapons.ranged) return true;
+
+  // 組合戰術：根據衝鋒傾向決定
+  if (tactics.chargeAggression > 0.7 && Math.random() < tactics.chargeAggression) {
+    log(`🔥 ${unit.name} 組合戰術：積極衝鋒`, "info");
+    return true;
+  }
 
   // 困難/專家模式：分析是否有利
   if (aiDifficulty === "hard" || aiDifficulty === "expert") {
@@ -8971,151 +9008,238 @@ function isNearAllyMonster(target, attackerPlayer) {
 // ========== 競技預設組合 ==========
 const PRESET_ARMIES = {
   "necrons": [
-    // ===== 1000分組合 =====
+    // ===== 1000分組合 (來源: miniheadquarters.com, bolterandchainsword.com) =====
     {
-      name: "【1000分】夜靈突襲",
+      name: "【1000分】Hypercrypt幽靈",
+      desc: "6幽靈+末日方舟核心，高機動性",
       detachment: "hypercrypt-legion",
-      units: ["nc-ctan-nightbringer", "nc-overlord", "nc-immortals", "nc-immortals", "nc-wraiths", "nc-skorpekh"]
+      units: ["nc-chronomancer", "nc-hexmark", "nc-technomancer", "nc-warriors", "nc-scarabs", "nc-wraiths", "nc-wraiths", "nc-deathmarks", "nc-doomsdayark"],
+      warlord: "nc-chronomancer",
+      enhancements: [{ unitId: "nc-chronomancer", enhancement: "維度跳躍者", points: 25 }]
     },
     {
-      name: "【1000分】毀滅者軍團",
+      name: "【1000分】三C'tan衝擊",
+      desc: "三星神壓制，極端精英列表",
+      detachment: "hypercrypt-legion",
+      units: ["nc-ctan-nightbringer", "nc-ctan-deceiver", "nc-ctan-transcendent", "nc-warriors", "nc-chronomancer"],
+      warlord: "nc-chronomancer",
+      enhancements: [{ unitId: "nc-chronomancer", enhancement: "時間錨", points: 20 }]
+    },
+    {
+      name: "【1000分】毀滅者獵殺",
+      desc: "毀滅者核心，高傷害輸出",
       detachment: "annihilation-legion",
-      units: ["nc-skorpekh-lord", "nc-skorpekh", "nc-skorpekh", "nc-lokhust-destroyers", "nc-hexmark", "nc-warriors", "nc-scarabs"]
-    },
-    {
-      name: "【1000分】科技術士",
-      detachment: "canoptek-court",
-      units: ["nc-technomancer", "nc-chronomancer", "nc-wraiths", "nc-wraiths", "nc-doomstalker", "nc-spyder", "nc-scarabs"]
+      units: ["nc-skorpekh-lord", "nc-skorpekh", "nc-skorpekh", "nc-lokhust", "nc-lokhust", "nc-hexmark", "nc-warriors", "nc-scarabs"],
+      warlord: "nc-skorpekh-lord",
+      enhancements: []
     },
     // ===== 2000分組合 =====
     {
       name: "【2000分】寂靜王+夜靈",
+      desc: "寂靜王帶領夜靈進攻",
       detachment: "starshatter-arsenal",
-      units: ["nc-silentking", "nc-ctan-nightbringer", "nc-chronomancer", "nc-wraiths", "nc-wraiths", "nc-doomsdayark", "nc-immortals", "nc-immortals"]
+      units: ["nc-silentking", "nc-ctan-nightbringer", "nc-chronomancer", "nc-wraiths", "nc-wraiths", "nc-doomsdayark", "nc-immortals", "nc-immortals"],
+      warlord: "nc-silentking",
+      enhancements: []
     },
     {
       name: "【2000分】雙C'tan",
+      desc: "夜靈+欺詐者雙星神",
       detachment: "hypercrypt-legion",
-      units: ["nc-ctan-nightbringer", "nc-ctan-deceiver", "nc-hexmark", "nc-hexmark", "nc-deathmarks", "nc-doomsdayark", "nc-wraiths", "nc-tombblades"]
+      units: ["nc-ctan-nightbringer", "nc-ctan-deceiver", "nc-hexmark", "nc-hexmark", "nc-deathmarks", "nc-doomsdayark", "nc-wraiths", "nc-tombblades"],
+      warlord: "nc-hexmark",
+      enhancements: [{ unitId: "nc-hexmark", enhancement: "維度跳躍者", points: 25 }]
     },
     {
       name: "【2000分】銀潮軍團",
+      desc: "霸主帶領銀潮大軍",
       detachment: "awakened-dynasty",
-      units: ["nc-overlord", "nc-skorpekh-lord", "nc-szeras", "nc-warriors", "nc-warriors", "nc-lychguard", "nc-spyder", "nc-skorpekh"]
+      units: ["nc-overlord", "nc-skorpekh-lord", "nc-szeras", "nc-warriors", "nc-warriors", "nc-lychguard", "nc-spyder", "nc-skorpekh"],
+      warlord: "nc-overlord",
+      enhancements: [
+        { unitId: "nc-overlord", enhancement: "相位護盾", points: 20 },
+        { unitId: "nc-skorpekh-lord", enhancement: "超越時間", points: 25 }
+      ]
     }
   ],
   "tyranids": [
-    // ===== 1000分組合 =====
+    // ===== 1000分組合 (來源: thetyranidhive.proboards.com, woehammer.com) =====
     {
-      name: "【1000分】怪獸壓制",
-      detachment: "invasion-fleet",
-      units: ["ty-hivetyrant", "ty-exocrine", "ty-carnifex", "ty-zoanthropes", "ty-termagants", "ty-warriors"]
+      name: "【1000分】滲透獵殺",
+      desc: "Vanguard滲透流，大量伏擊單位",
+      detachment: "vanguard-onslaught",
+      units: ["ty-broodlord", "ty-deathleaper", "ty-genestealers", "ty-genestealers", "ty-lictors", "ty-lictors", "ty-gargoyles", "ty-gargoyles"],
+      warlord: "ty-broodlord",
+      enhancements: [{ unitId: "ty-broodlord", enhancement: "潛行基因", points: 15 }]
     },
     {
-      name: "【1000分】地下突襲",
-      detachment: "subterranean-assault",
-      units: ["ty-neurotyrant", "ty-mawloc", "ty-trygon", "ty-genestealers", "ty-raveners", "ty-termagants"]
+      name: "【1000分】蟲母繁殖",
+      desc: "Tervigon補充白蟻，持續壓力",
+      detachment: "invasion-fleet",
+      units: ["ty-swarmlord", "ty-prime", "ty-tervigon", "ty-warriors", "ty-termagants", "ty-termagants", "ty-termagants"],
+      warlord: "ty-swarmlord",
+      enhancements: [{ unitId: "ty-swarmlord", enhancement: "適應進化", points: 25 }]
     },
     {
-      name: "【1000分】蟲海淹沒",
+      name: "【1000分】怪獸打擊",
+      desc: "大型怪獸為主，高傷害輸出",
       detachment: "invasion-fleet",
-      units: ["ty-tervigon", "ty-broodlord", "ty-termagants", "ty-termagants", "ty-hormagaunts", "ty-hormagaunts", "ty-gargoyles"]
+      units: ["ty-hivetyrant", "ty-exocrine", "ty-carnifex", "ty-warriors", "ty-termagants", "ty-hormagaunts"],
+      warlord: "ty-hivetyrant",
+      enhancements: [{ unitId: "ty-hivetyrant", enhancement: "頂級掠食者", points: 20 }]
     },
     // ===== 2000分組合 =====
     {
       name: "【2000分】三Exocrine砲擊",
+      desc: "三隻Exocrine遠程砲擊",
       detachment: "invasion-fleet",
-      units: ["ty-hivetyrant", "ty-exocrine", "ty-exocrine", "ty-exocrine", "ty-maleceptor", "ty-zoanthropes", "ty-termagants", "ty-termagants"]
+      units: ["ty-hivetyrant", "ty-exocrine", "ty-exocrine", "ty-exocrine", "ty-maleceptor", "ty-zoanthropes", "ty-termagants", "ty-termagants"],
+      warlord: "ty-hivetyrant",
+      enhancements: [
+        { unitId: "ty-hivetyrant", enhancement: "適應進化", points: 25 },
+        { unitId: "ty-maleceptor", enhancement: "蟲群之聲", points: 10 }
+      ]
     },
     {
       name: "【2000分】Norn使者佔點",
+      desc: "地底突襲佔領目標",
       detachment: "subterranean-assault",
-      units: ["ty-nornemissary", "ty-neurotyrant", "ty-mawloc", "ty-trygon", "ty-warriors", "ty-genestealers", "ty-carnifex", "ty-carnifex"]
+      units: ["ty-nornemissary", "ty-neurotyrant", "ty-mawloc", "ty-trygon", "ty-warriors", "ty-genestealers", "ty-carnifex", "ty-carnifex"],
+      warlord: "ty-nornemissary",
+      enhancements: []
     },
     {
       name: "【2000分】蟲海戰術",
+      desc: "大量蟲海淹沒敵軍",
       detachment: "invasion-fleet",
-      units: ["ty-tervigon", "ty-hivetyrant", "ty-termagants", "ty-termagants", "ty-termagants", "ty-hormagaunts", "ty-hormagaunts", "ty-tyrannofex"]
+      units: ["ty-tervigon", "ty-hivetyrant", "ty-termagants", "ty-termagants", "ty-termagants", "ty-hormagaunts", "ty-hormagaunts", "ty-tyrannofex"],
+      warlord: "ty-hivetyrant",
+      enhancements: [
+        { unitId: "ty-hivetyrant", enhancement: "頂級掠食者", points: 20 },
+        { unitId: "ty-tervigon", enhancement: "蟲群之聲", points: 10 }
+      ]
     }
   ],
   "orks": [
-    // ===== 1000分組合 =====
+    // ===== 1000分組合 (來源: woehammer.com) =====
     {
-      name: "【1000分】Dakka火力",
+      name: "【1000分】Waagh衝鋒",
+      desc: "雙Warboss+Meganobz，強力近戰",
+      detachment: "war-horde",
+      units: ["or-warboss", "or-warboss", "or-bigmek", "or-meganobz", "or-boyz", "or-boyz", "or-deffkoptas"],
+      warlord: "or-warboss",
+      enhancements: []
+    },
+    {
+      name: "【1000分】Dakka掃射",
+      desc: "Lootas+Tankbustas遠程火力",
       detachment: "more-dakka",
-      units: ["or-warboss", "or-bigmek", "or-lootas", "or-tankbustas", "or-boyz", "or-boyz", "or-deffkoptas"]
+      units: ["or-warboss", "or-bigmek", "or-lootas", "or-lootas", "or-tankbustas", "or-boyz", "or-boyz"],
+      warlord: "or-warboss",
+      enhancements: []
     },
     {
-      name: "【1000分】重裝頭頭",
-      detachment: "bully-boyz",
-      units: ["or-warboss", "or-painboy", "or-meganobz", "or-meganobz", "or-nobz", "or-boyz"]
-    },
-    {
-      name: "【1000分】快速突擊",
+      name: "【1000分】速攻突擊",
+      desc: "Deffkoptas+Stormboyz快速打擊",
       detachment: "kult-of-speed",
-      units: ["or-warboss", "or-weirdboy", "or-deffkoptas", "or-stormboyz", "or-stormboyz", "or-kommandos"]
+      units: ["or-warboss", "or-weirdboy", "or-deffkoptas", "or-deffkoptas", "or-stormboyz", "or-stormboyz", "or-boyz"],
+      warlord: "or-warboss",
+      enhancements: []
     },
     // ===== 2000分組合 =====
     {
       name: "【2000分】Dakka卡車隊",
+      desc: "Ghazghkull帶領火力輸出",
       detachment: "more-dakka",
-      units: ["or-ghazghkull", "or-bigmek", "or-lootas", "or-lootas", "or-tankbustas", "or-boyz", "or-boyz", "or-deffkoptas"]
+      units: ["or-ghazghkull", "or-bigmek", "or-lootas", "or-lootas", "or-tankbustas", "or-boyz", "or-boyz", "or-deffkoptas"],
+      warlord: "or-ghazghkull",
+      enhancements: []
     },
     {
       name: "【2000分】Meganobz重裝",
+      desc: "大量Meganobz衝擊",
       detachment: "bully-boyz",
-      units: ["or-warboss", "or-bigmek", "or-meganobz", "or-meganobz", "or-meganobz", "or-nobz", "or-boyz", "or-boyz"]
+      units: ["or-warboss", "or-bigmek", "or-meganobz", "or-meganobz", "or-meganobz", "or-nobz", "or-boyz", "or-boyz"],
+      warlord: "or-warboss",
+      enhancements: []
     },
     {
       name: "【2000分】速度Waagh",
+      desc: "快速打擊，突然襲擊",
       detachment: "kult-of-speed",
-      units: ["or-warboss", "or-weirdboy", "or-deffkoptas", "or-deffkoptas", "or-stormboyz", "or-stormboyz", "or-kommandos", "or-boyz"]
+      units: ["or-warboss", "or-weirdboy", "or-deffkoptas", "or-deffkoptas", "or-stormboyz", "or-stormboyz", "or-kommandos", "or-boyz"],
+      warlord: "or-warboss",
+      enhancements: []
     }
   ],
   "space-marines": [
-    // ===== 1000分組合 =====
+    // ===== 1000分組合 (來源: dakkadakka.com, goonhammer.com) =====
     {
-      name: "【1000分】終結者精英",
+      name: "【1000分】Gladius滲透",
+      desc: "滲透者+偵察兵，任務優先",
       detachment: "gladius-task-force",
-      units: ["sm-captain", "sm-terminators", "sm-intercessors", "sm-intercessors", "sm-eradicators", "sm-dreadnought"]
+      units: ["sm-librarian", "sm-apothecary", "sm-intercessors", "sm-intercessors", "sm-tactical", "sm-tactical", "sm-dreadnought"],
+      warlord: "sm-librarian",
+      enhancements: []
     },
     {
-      name: "【1000分】火力支援",
-      detachment: "firestorm-assault-force",
-      units: ["sm-captain", "sm-hellblasters", "sm-devastators", "sm-intercessors", "sm-tactical", "sm-predator"]
+      name: "【1000分】重裝打擊",
+      desc: "無畏機甲+火力支援",
+      detachment: "gladius-task-force",
+      units: ["sm-captain", "sm-chaplain", "sm-hellblasters", "sm-intercessors", "sm-intercessors", "sm-dreadnought", "sm-eradicators"],
+      warlord: "sm-captain",
+      enhancements: []
     },
     {
-      name: "【1000分】突擊先鋒",
-      detachment: "vanguard-spearhead",
-      units: ["sm-captain", "sm-assault-marines", "sm-vanguard-veterans", "sm-intercessors", "sm-tactical", "sm-rhino"]
+      name: "【1000分】終結者突襲",
+      desc: "終結者深入打擊",
+      detachment: "1st-company-task-force",
+      units: ["sm-captain", "sm-terminators", "sm-assault-terminators", "sm-intercessors", "sm-tactical", "sm-rhino"],
+      warlord: "sm-captain",
+      enhancements: []
     },
     // ===== 2000分組合 =====
     {
       name: "【2000分】終結者突擊",
+      desc: "終結者深入打擊",
       detachment: "gladius-task-force",
-      units: ["sm-captain", "sm-chaplain", "sm-terminators", "sm-assault-terminators", "sm-intercessors", "sm-intercessors", "sm-eradicators", "sm-dreadnought"]
+      units: ["sm-captain", "sm-chaplain", "sm-terminators", "sm-assault-terminators", "sm-intercessors", "sm-intercessors", "sm-eradicators", "sm-dreadnought"],
+      warlord: "sm-captain",
+      enhancements: []
     },
     {
       name: "【2000分】火力壓制",
+      desc: "重火力輸出壓制敵軍",
       detachment: "firestorm-assault-force",
-      units: ["sm-captain", "sm-librarian", "sm-hellblasters", "sm-devastators", "sm-aggressors", "sm-intercessors", "sm-predator", "sm-gladiator"]
+      units: ["sm-captain", "sm-librarian", "sm-hellblasters", "sm-devastators", "sm-aggressors", "sm-intercessors", "sm-predator", "sm-gladiator"],
+      warlord: "sm-captain",
+      enhancements: []
     },
     {
       name: "【2000分】快速打擊",
+      desc: "快速突擊近戰",
       detachment: "stormlance-task-force",
-      units: ["sm-captain", "sm-chaplain", "sm-assault-marines", "sm-vanguard-veterans", "sm-intercessors", "sm-tactical", "sm-rhino", "sm-repulsor"]
+      units: ["sm-captain", "sm-chaplain", "sm-assault-marines", "sm-vanguard-veterans", "sm-intercessors", "sm-tactical", "sm-rhino", "sm-repulsor"],
+      warlord: "sm-captain",
+      enhancements: []
     }
   ],
   "chaos": [
     {
       name: "【1000分】乞血狂徒",
+      desc: "狂暴近戰部隊",
       detachment: "default",
-      units: ["ch-lord", "ch-berzerkers", "ch-berzerkers", "ch-legionaries", "ch-helbrute"]
+      units: ["ch-lord", "ch-berzerkers", "ch-berzerkers", "ch-legionaries", "ch-helbrute"],
+      warlord: "ch-lord",
+      enhancements: []
     },
     {
       name: "【2000分】乞血軍團",
+      desc: "大規模乞血軍團",
       detachment: "default",
-      units: ["ch-lord", "ch-berzerkers", "ch-berzerkers", "ch-legionaries", "ch-legionaries", "ch-havocs", "ch-helbrute"]
+      units: ["ch-lord", "ch-berzerkers", "ch-berzerkers", "ch-legionaries", "ch-legionaries", "ch-havocs", "ch-helbrute"],
+      warlord: "ch-lord",
+      enhancements: []
     }
   ]
 };
@@ -9185,12 +9309,40 @@ function loadPresetArmy(player) {
     }
   });
 
+  // ===== 自動設置主將 =====
+  if (preset.warlord) {
+    const warlordIndex = armyRosters[player].findIndex(u => u.id === preset.warlord);
+    if (warlordIndex !== -1) {
+      // 先清除其他主將標記
+      armyRosters[player].forEach(u => u.isWarlord = false);
+      armyRosters[player][warlordIndex].isWarlord = true;
+      console.log(`👑 主將設置: ${armyRosters[player][warlordIndex].name}`);
+    }
+  }
+
+  // ===== 自動設置強化 =====
+  if (preset.enhancements && preset.enhancements.length > 0) {
+    let enhancementLog = [];
+    preset.enhancements.forEach(enh => {
+      // 找到對應的單位（第一個匹配的未強化單位）
+      const unitIndex = armyRosters[player].findIndex(u => u.id === enh.unitId && !u.enhancement);
+      if (unitIndex !== -1) {
+        armyRosters[player][unitIndex].enhancement = enh.enhancement;
+        armyRosters[player][unitIndex].enhancementPoints = enh.points;
+        enhancementLog.push(`${armyRosters[player][unitIndex].name}: ${enh.enhancement}`);
+      }
+    });
+    if (enhancementLog.length > 0) {
+      console.log(`⚔️ 強化設置: ${enhancementLog.join(", ")}`);
+    }
+  }
+
   updateRosterDisplay(player);
   checkStartButton();
   syncArmyToFirebase(player);
 
   // 顯示結果
-  const totalPoints = armyRosters[player].reduce((sum, u) => sum + u.points, 0);
+  const totalPoints = armyRosters[player].reduce((sum, u) => sum + (u.points || 0) + (u.enhancementPoints || 0), 0);
   console.log(`✅ 載入預設組合: ${preset.name}`);
   console.log(`   添加 ${addedCount} 個單位, 總計 ${totalPoints} 點`);
 
@@ -9716,6 +9868,278 @@ function removeEnhancement(player, index) {
   document.getElementById('enhancementPopup')?.remove();
   updateRosterDisplay(player);
   syncArmyToFirebase(player);
+}
+
+// ===== 強化效果系統 =====
+// 獲取單位的強化效果（戰鬥時調用）
+function getEnhancementEffects(unit, context = {}) {
+  const effects = {
+    invSave: null,           // 無敵豁免
+    rerollHit: 0,            // 重擲命中骰數量
+    rerollWound: 0,          // 重擲致傷骰數量
+    rerollDamage: 0,         // 重擲傷害骰數量
+    attackBonus: 0,          // 攻擊次數加成
+    damageBonus: 0,          // 傷害加成
+    hitMalus: 0,             // 敵軍命中減值
+    toughnessBonus: 0,       // 韌性加成
+    woundBonus: 0,           // 傷口加成
+    healBonus: 0,            // 治療加成
+    leadershipBonus: 0,      // 領導值加成
+    leadershipAura: 0,       // 領導光環範圍
+    stealth: false,          // 隱匿
+    loneOperative: false,    // 獨行者
+    rerollCharge: false,     // 重擲衝鋒
+    chargeAura: 0,           // 衝鋒重擲光環
+    triggered: []            // 觸發的強化名稱
+  };
+
+  if (!unit.enhancement) return effects;
+
+  const enhancement = unit.enhancement;
+
+  // ===== 死靈強化 =====
+  if (enhancement === "超越時間") {
+    effects.rerollHit = 1;
+    effects.rerollDamage = 1;
+    effects.triggered.push("超越時間: 重擲1命中+1傷害");
+  }
+  else if (enhancement === "相位護盾") {
+    effects.invSave = 4;
+    effects.triggered.push("相位護盾: 4+無敵");
+  }
+  else if (enhancement === "活金屬巔峰") {
+    effects.healBonus = 2; // D3 instead of 1
+    effects.triggered.push("活金屬巔峰: 恢復D3");
+  }
+  else if (enhancement === "指揮協議") {
+    effects.leadershipAura = 6;
+    effects.leadershipBonus = 1;
+    effects.triggered.push("指揮協議: 6\"內+1Ld");
+  }
+  else if (enhancement === "維度跳躍者") {
+    effects.triggered.push("維度跳躍者: 可傳送");
+  }
+  else if (enhancement === "時間錨") {
+    effects.triggered.push("時間錨: 死亡時4+復活");
+  }
+
+  // ===== 泰倫強化 =====
+  else if (enhancement === "適應進化") {
+    effects.triggered.push("適應進化: 可選武器關鍵字");
+  }
+  else if (enhancement === "頂級掠食者") {
+    if (context.charged) {
+      effects.attackBonus = 1;
+      effects.damageBonus = 1;
+      effects.triggered.push("頂級掠食者: 衝鋒+1A+1D");
+    }
+  }
+  else if (enhancement === "催眠凝視") {
+    effects.hitMalus = 1; // 3"內敵軍-1命中
+    effects.triggered.push("催眠凝視: 敵軍-1命中");
+  }
+  else if (enhancement === "蟲群之聲") {
+    effects.chargeAura = 6;
+    effects.rerollCharge = true;
+    effects.triggered.push("蟲群之聲: 6\"內重擲衝鋒");
+  }
+  else if (enhancement === "生物型態") {
+    effects.toughnessBonus = 1;
+    effects.woundBonus = 1;
+    effects.triggered.push("生物型態: +1T+1W");
+  }
+  else if (enhancement === "潛行基因") {
+    effects.stealth = true;
+    effects.loneOperative = true;
+    effects.triggered.push("潛行基因: 隱匿+獨行者");
+  }
+
+  // ===== 星際戰士強化 =====
+  else if (enhancement === "Fire Discipline" || enhancement === "火力紀律") {
+    effects.rerollHit = 1;
+    effects.triggered.push("火力紀律: 重擲1命中");
+  }
+  else if (enhancement === "Artificer Armour" || enhancement === "工匠護甲") {
+    effects.invSave = 5;
+    effects.toughnessBonus = 1;
+    effects.triggered.push("工匠護甲: 5+無敵+1T");
+  }
+
+  // ===== 歐克強化 =====
+  else if (enhancement === "Da Biggest Boss" || enhancement === "最大的老大") {
+    effects.attackBonus = 2;
+    effects.triggered.push("最大的老大: +2攻擊");
+  }
+  else if (enhancement === "Brutal but Kunnin" || enhancement === "殘暴狡詐") {
+    effects.rerollWound = 1;
+    effects.triggered.push("殘暴狡詐: 重擲1致傷");
+  }
+
+  return effects;
+}
+
+// 檢查敵軍是否受到催眠凝視等debuff
+function getEnhancementDebuff(attacker, target) {
+  const debuff = { hitMalus: 0 };
+
+  // 檢查目標附近是否有帶催眠凝視的敵軍
+  const enemyPlayer = attacker.player === 1 ? 2 : 1;
+  const nearbyEnemies = gameState.units.filter(u =>
+    u.player === enemyPlayer &&
+    u.alive &&
+    u.enhancement === "催眠凝視" &&
+    pixelsToInch(Math.hypot(u.x - attacker.x, u.y - attacker.y)) <= 3
+  );
+
+  if (nearbyEnemies.length > 0) {
+    debuff.hitMalus = 1;
+  }
+
+  return debuff;
+}
+
+// ===== AI組合專屬戰術系統 =====
+// 檢測當前使用的預設組合類型
+function detectArmyArchetype(player) {
+  const units = gameState.units.filter(u => u.player === player && u.alive);
+  const unitIds = units.map(u => u.id);
+
+  // 計算單位類型數量
+  const ctanCount = units.filter(u => u.keywords?.includes("C'tan")).length;
+  const monsterCount = units.filter(u => u.keywords?.includes("Monster")).length;
+  const infantryCount = units.filter(u => u.keywords?.includes("Infantry")).length;
+  const vehicleCount = units.filter(u => u.keywords?.includes("Vehicle")).length;
+  const destroyerCount = units.filter(u => u.keywords?.includes("Destroyer")).length;
+  const swarmCount = units.filter(u => u.keywords?.includes("Swarm") || u.keywords?.includes("Endless Multitude")).length;
+
+  // 判斷組合類型
+  if (ctanCount >= 2) return "triple-ctan";
+  if (ctanCount === 1 && units.some(u => u.id === "nc-silentking")) return "silent-king-ctan";
+  if (destroyerCount >= 3) return "destroyer-cult";
+
+  if (units.some(u => u.id === "ty-tervigon") && swarmCount >= 3) return "swarm-flood";
+  if (units.filter(u => u.id?.includes("lictor") || u.id?.includes("genestealer")).length >= 3) return "infiltration";
+  if (monsterCount >= 4) return "monster-mash";
+
+  if (units.filter(u => u.id?.includes("loota") || u.id?.includes("tankbusta")).length >= 2) return "dakka-wall";
+  if (units.filter(u => u.id?.includes("meganob")).length >= 2) return "mega-armor";
+  if (units.filter(u => u.id?.includes("deffkopta") || u.id?.includes("stormboy")).length >= 3) return "speed-freeks";
+
+  if (units.filter(u => u.keywords?.includes("Terminator")).length >= 2) return "terminator-assault";
+  if (vehicleCount >= 3) return "armored-spearhead";
+
+  return "balanced"; // 默認均衡
+}
+
+// 獲取組合專屬戰術加成
+function getArchetypeTactics(player, unit, context = {}) {
+  const archetype = detectArmyArchetype(player);
+  const tactics = {
+    moveStyle: "balanced",      // balanced, aggressive, defensive, objective
+    targetPriority: "threat",   // threat, wounded, objective, character
+    chargeAggression: 0.5,      // 0-1 衝鋒傾向
+    objectivePriority: 1.0,     // 目標優先權乘數
+    spreadOut: false,           // 是否分散
+    focusFire: false,           // 是否集火
+    retreatThreshold: 0.3,      // 撤退血量閾值
+    useDeepStrike: "round2",    // 深入打擊時機
+    description: ""
+  };
+
+  switch (archetype) {
+    case "triple-ctan":
+      tactics.moveStyle = "aggressive";
+      tactics.targetPriority = "spread";  // 分散攻擊不同目標
+      tactics.chargeAggression = 0.7;
+      tactics.spreadOut = true;           // C'tan分散壓制
+      tactics.retreatThreshold = 0.2;     // C'tan耐打，不輕易撤退
+      tactics.description = "三C'tan分散壓制";
+      break;
+
+    case "silent-king-ctan":
+      tactics.moveStyle = "aggressive";
+      tactics.targetPriority = "character";
+      tactics.chargeAggression = 0.8;
+      tactics.focusFire = true;
+      tactics.description = "寂靜王+夜靈斬首";
+      break;
+
+    case "destroyer-cult":
+      tactics.moveStyle = "aggressive";
+      tactics.targetPriority = "wounded";  // 收割殘血
+      tactics.chargeAggression = 0.9;
+      tactics.description = "毀滅者獵殺";
+      break;
+
+    case "swarm-flood":
+      tactics.moveStyle = "objective";
+      tactics.targetPriority = "objective";
+      tactics.objectivePriority = 1.5;     // 更重視佔點
+      tactics.retreatThreshold = 0.1;      // 蟲海不撤退
+      tactics.description = "蟲海淹沒佔點";
+      break;
+
+    case "infiltration":
+      tactics.moveStyle = "flanking";
+      tactics.targetPriority = "character";
+      tactics.useDeepStrike = "round2";
+      tactics.chargeAggression = 0.8;
+      tactics.description = "滲透斬首";
+      break;
+
+    case "monster-mash":
+      tactics.moveStyle = "aggressive";
+      tactics.targetPriority = "threat";
+      tactics.chargeAggression = 0.7;
+      tactics.focusFire = true;
+      tactics.description = "怪獸壓制";
+      break;
+
+    case "dakka-wall":
+      tactics.moveStyle = "defensive";
+      tactics.targetPriority = "threat";
+      tactics.chargeAggression = 0.2;      // 避免近戰
+      tactics.objectivePriority = 0.8;
+      tactics.description = "火力壓制保持距離";
+      break;
+
+    case "mega-armor":
+      tactics.moveStyle = "aggressive";
+      tactics.targetPriority = "threat";
+      tactics.chargeAggression = 0.9;
+      tactics.retreatThreshold = 0.15;
+      tactics.description = "重裝推進";
+      break;
+
+    case "speed-freeks":
+      tactics.moveStyle = "flanking";
+      tactics.targetPriority = "objective";
+      tactics.chargeAggression = 0.7;
+      tactics.useDeepStrike = "round1";    // 第一回合就沖
+      tactics.description = "速攻突襲";
+      break;
+
+    case "terminator-assault":
+      tactics.moveStyle = "deepstrike";
+      tactics.targetPriority = "character";
+      tactics.useDeepStrike = "round2";
+      tactics.chargeAggression = 0.85;
+      tactics.description = "終結者深入斬首";
+      break;
+
+    case "armored-spearhead":
+      tactics.moveStyle = "balanced";
+      tactics.targetPriority = "vehicle";
+      tactics.chargeAggression = 0.4;
+      tactics.focusFire = true;
+      tactics.description = "裝甲矛頭";
+      break;
+
+    default:
+      tactics.description = "均衡戰術";
+  }
+
+  return tactics;
 }
 
 // 顯示對手的軍隊（線上模式，設定階段）
@@ -13682,6 +14106,21 @@ async function performAttack(attacker, target, weapon, mode) {
   // 獲取單位能力加成
   const abilityBonus = getUnitAbilityBonus(attacker, target, context);
 
+  // 獲取強化效果
+  const enhEffects = getEnhancementEffects(attacker, context);
+  // 合併強化效果到能力加成
+  if (enhEffects.attackBonus) abilityBonus.attackBonus += enhEffects.attackBonus;
+  if (enhEffects.damageBonus) abilityBonus.damageBonus += enhEffects.damageBonus;
+  if (enhEffects.invSave && (!abilityBonus.invSave || enhEffects.invSave < abilityBonus.invSave)) {
+    abilityBonus.invSave = enhEffects.invSave;
+  }
+  if (enhEffects.rerollHit > 0) abilityBonus.rerollHits = true;
+  if (enhEffects.rerollWound > 0) abilityBonus.rerollWounds = true;
+  // 記錄觸發的強化
+  if (enhEffects.triggered && enhEffects.triggered.length > 0) {
+    enhEffects.triggered.forEach(t => abilityBonus.triggeredAbilities.push(t));
+  }
+
   // 顯示種族規則效果（帶視覺特效）
   const bonusTexts = [];
   if (detBonus.hitBonus) bonusTexts.push(`命中+${detBonus.hitBonus}`);
@@ -13814,6 +14253,18 @@ async function performAttack(attacker, target, weapon, mode) {
   // ========== 命中擲骰 ==========
   let hitModifier = (detBonus.hitBonus || 0) + (abilityBonus.hitBonus || 0);
 
+  // 獲取防守方的強化效果（用於命中減值等）
+  const defenderEnhEffects = getEnhancementEffects(target, { phase: "defense" });
+
+  // 強化效果：催眠凝視（3"內敵軍命中-1）
+  if (defenderEnhEffects.hitMalus > 0) {
+    const dist = pixelsToInch(Math.hypot(attacker.x - target.x, attacker.y - target.y));
+    if (dist <= 3) {
+      hitModifier -= defenderEnhEffects.hitMalus;
+      log(`[強化] ${target.name} 催眠凝視 → 命中-${defenderEnhEffects.hitMalus}`, "info");
+    }
+  }
+
   // [Heavy] 未移動時命中+1
   if (weaponEffects.heavy && !attacker.hasMoved && mode === "ranged") {
     hitModifier += 1;
@@ -13835,6 +14286,14 @@ async function performAttack(attacker, target, weapon, mode) {
     if (hasStealth) {
       hitModifier -= 1;
       log(`[Stealth] ${target.name} 隱匿 → 命中-1`, "info");
+    }
+
+    // 強化效果的隱匿（如 潛行基因）
+    if (defenderEnhEffects && defenderEnhEffects.stealth) {
+      if (!hasStealth) { // 避免重複計算
+        hitModifier -= 1;
+        log(`[強化] ${target.name} 潛行基因 → 命中-1`, "info");
+      }
     }
 
     // ===== Dense Terrain（茂密地形）規則 - 官方10版 =====
@@ -14011,6 +14470,12 @@ async function performAttack(attacker, target, weapon, mode) {
   if (defenderBonus.invSave && (!targetInv || defenderBonus.invSave < targetInv)) {
     targetInv = defenderBonus.invSave;
     log(`[種族規則] ${target.name} 獲得 ${targetInv}+ 無敵豁免`, "info");
+  }
+
+  // 強化效果的無敵豁免（如 相位護盾）- 使用前面定義的 defenderEnhEffects
+  if (defenderEnhEffects.invSave && (!targetInv || defenderEnhEffects.invSave < targetInv)) {
+    targetInv = defenderEnhEffects.invSave;
+    log(`[強化] ${target.name} 獲得 ${targetInv}+ 無敵豁免`, "info");
   }
 
   // 無敵豁免
@@ -14505,8 +14970,26 @@ async function executeCommandPhase() {
   if (gain > 0) {
     log(`🏆 ${playerName}控制 ${controlCount} 個目標 → +${gain} VP (總計: ${prevVP} → ${gameState.vp[gameState.currentPlayer]})`, "phase");
     playSound('click');
+    // 在控制的目標上顯示VP獲得提示
+    const controlledObjs = gameState.objectives.filter(o => o.control === gameState.currentPlayer);
+    controlledObjs.forEach((obj, i) => {
+      setTimeout(() => {
+        const color = gameState.currentPlayer === 1 ? "#3b82f6" : "#dc2626";
+        showFloatingText(obj.x, obj.y - 30, `+${Math.ceil(gain / controlledObjs.length)} VP`, {
+          color: color,
+          fontSize: 22,
+          duration: 2500
+        });
+      }, i * 200);
+    });
   } else {
     log(`⚠️ ${playerName}未控制任何目標，本回合+0 VP`, "info");
+    // 顯示未得分提示
+    showFloatingText(canvas.width / 2, 100, "本回合 +0 VP", {
+      color: "#888888",
+      fontSize: 18,
+      duration: 2000
+    });
   }
 
   // 顯示戰略選擇彈窗（玩家控制時，有CP且有戰略時）
@@ -14583,8 +15066,26 @@ async function startCommandPhase() {
   if (gain > 0) {
     log(`🏆 ${playerName}控制 ${controlCount} 個目標 → +${gain} VP (總計: ${prevVP} → ${gameState.vp[gameState.currentPlayer]})`, "phase");
     playSound('click');
+    // 在控制的目標上顯示VP獲得提示
+    const controlledObjs = gameState.objectives.filter(o => o.control === gameState.currentPlayer);
+    controlledObjs.forEach((obj, i) => {
+      setTimeout(() => {
+        const color = gameState.currentPlayer === 1 ? "#3b82f6" : "#dc2626";
+        showFloatingText(obj.x, obj.y - 30, `+${Math.ceil(gain / controlledObjs.length)} VP`, {
+          color: color,
+          fontSize: 22,
+          duration: 2500
+        });
+      }, i * 200);
+    });
   } else {
     log(`⚠️ ${playerName}未控制任何目標，本回合+0 VP`, "info");
+    // 顯示未得分提示
+    showFloatingText(canvas.width / 2, 100, "本回合 +0 VP", {
+      color: "#888888",
+      fontSize: 18,
+      duration: 2000
+    });
   }
 
   // 顯示戰略選擇彈窗（玩家控制時，有CP且有戰略時）
@@ -14703,6 +15204,10 @@ function computeObjectiveControl() {
     if (prevControl !== obj.control) {
       if (obj.control === 1) {
         changes.push(`🏴 玩家一佔領目標${obj.id} (OC: ${oc1} vs ${oc2})`);
+        // 地圖視覺提示：佔領成功
+        showAura(obj.x, obj.y, { radius: 50, color: 'rgba(59, 130, 246, 0.6)', duration: 1500 });
+        showFloatingText(obj.x, obj.y, "🏴 佔領!", { color: "#3b82f6", fontSize: 20, duration: 2000 });
+        playSound('click');
         // 檢查次要任務：佔領目標
         checkSecondaryMissions(1, {
           type: "objectiveCaptured",
@@ -14711,6 +15216,10 @@ function computeObjectiveControl() {
         });
       } else if (obj.control === 2) {
         changes.push(`🏴 玩家二佔領目標${obj.id} (OC: ${oc2} vs ${oc1})`);
+        // 地圖視覺提示：佔領成功
+        showAura(obj.x, obj.y, { radius: 50, color: 'rgba(220, 38, 38, 0.6)', duration: 1500 });
+        showFloatingText(obj.x, obj.y, "🏴 佔領!", { color: "#dc2626", fontSize: 20, duration: 2000 });
+        playSound('click');
         // 檢查次要任務：佔領目標
         checkSecondaryMissions(2, {
           type: "objectiveCaptured",
@@ -14719,6 +15228,9 @@ function computeObjectiveControl() {
         });
       } else if (prevControl !== null) {
         changes.push(`⚔️ 目標${obj.id}被爭奪中 (OC: ${oc1} vs ${oc2})`);
+        // 地圖視覺提示：爭奪中
+        showAura(obj.x, obj.y, { radius: 40, color: 'rgba(251, 191, 36, 0.5)', duration: 1200 });
+        showFloatingText(obj.x, obj.y, "⚔️ 爭奪!", { color: "#fbbf24", fontSize: 18, duration: 1500 });
       }
     }
   }
@@ -14736,16 +15248,25 @@ function computeObjectiveControl() {
 }
 
 function scorePrimary(player) {
+  console.warn(`[scorePrimary] 開始計分 - 玩家:${player}, 任務:${gameState.primaryMission}, 目標數:${gameState.objectives?.length || 0}`);
+
+  // 顯示每個目標的控制狀態
+  gameState.objectives?.forEach((o, i) => {
+    console.warn(`  目標${i}: control=${o.control}, x=${Math.round(o.x)}, y=${Math.round(o.y)}`);
+  });
+
   // 使用主要任務的計分規則
   if (gameState.primaryMission && PRIMARY_MISSIONS[gameState.primaryMission]) {
     const score = PRIMARY_MISSIONS[gameState.primaryMission].scoring(player);
     console.warn(`[scorePrimary] 玩家${player} 任務:${gameState.primaryMission} 得分:${score}`);
+    log(`📊 VP計分: 任務=${gameState.primaryMission}, 得分=${score}`, "info");
     return score;
   }
   // 預設計分
   const controlled = gameState.objectives.filter(o => o.control === player).length;
   const score = Math.min(15, controlled * 5);
   console.warn(`[scorePrimary] 玩家${player} 控制目標:${controlled} 得分:${score}`);
+  log(`📊 VP計分: 控制${controlled}個目標, 得分=${score}`, "info");
   return score;
 }
 
