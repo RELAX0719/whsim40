@@ -754,7 +754,7 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
   <div class="setup-header">
     <h1>⚔️ 戰鎚 40,000 ⚔️</h1>
     <p>第十版核心規則 - 軍表配置</p>
-    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.6.0 (2026-02-08)</p>
+    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.7.0 (2026-02-08)</p>
   </div>
 
   <!-- 遊戲設定區 -->
@@ -819,6 +819,7 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
           <option value="easy">簡單</option>
           <option value="normal" selected>普通</option>
           <option value="hard">困難</option>
+          <option value="expert">🧠 專家</option>
         </select>
         <select id="p1Faction" onchange="updateAvailableUnits(1); updateDetachmentOptions(1);" style="flex: 1; padding: 6px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; color: var(--txt); font-size: 12px;">
           <option value="space-marines">星際戰士</option>
@@ -836,6 +837,16 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
           <select id="p1Detachment" onchange="selectDetachment(1)" style="flex: 1; padding: 5px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; color: var(--txt); font-size: 11px;"></select>
         </div>
         <div id="p1DetachmentDesc" style="font-size: 10px; color: var(--muted); padding: 6px; background: rgba(0,0,0,0.2); border-radius: 4px; line-height: 1.4;"></div>
+      </div>
+
+      <!-- 競技組合選擇 -->
+      <div style="margin-bottom: 10px;">
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <span style="font-size: 11px; color: var(--gold);">🏆 競技組合:</span>
+          <select id="p1PresetSelect" onchange="loadPresetArmy(1)" style="flex: 1; padding: 5px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; color: var(--txt); font-size: 11px;">
+            <option value="">-- 選擇預設組合 --</option>
+          </select>
+        </div>
       </div>
 
       <!-- 快速配置按鈕 -->
@@ -873,6 +884,7 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
           <option value="easy">簡單</option>
           <option value="normal" selected>普通</option>
           <option value="hard">困難</option>
+          <option value="expert">🧠 專家</option>
         </select>
         <select id="p2Faction" onchange="updateAvailableUnits(2); updateDetachmentOptions(2);" style="flex: 1; padding: 6px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; color: var(--txt); font-size: 12px;">
           <option value="necrons">死靈</option>
@@ -896,6 +908,16 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
           <select id="p2Detachment" onchange="selectDetachment(2)" style="flex: 1; padding: 5px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; color: var(--txt); font-size: 11px;"></select>
         </div>
         <div id="p2DetachmentDesc" style="font-size: 10px; color: var(--muted); padding: 6px; background: rgba(0,0,0,0.2); border-radius: 4px; line-height: 1.4;"></div>
+      </div>
+
+      <!-- 競技組合選擇 -->
+      <div style="margin-bottom: 10px;">
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <span style="font-size: 11px; color: var(--gold);">🏆 競技組合:</span>
+          <select id="p2PresetSelect" onchange="loadPresetArmy(2)" style="flex: 1; padding: 5px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; color: var(--txt); font-size: 11px;">
+            <option value="">-- 選擇預設組合 --</option>
+          </select>
+        </div>
       </div>
 
       <!-- 快速配置按鈕 -->
@@ -968,7 +990,7 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
 <!-- ===== 遊戲畫面 ===== -->
 <div class="game-screen" id="gameScreen">
   <div class="game-header">
-    <div class="game-title">⚔️ 戰鎚 40K - 回合 <span id="roundNum">1</span></div>
+    <div class="game-title">⚔️ 戰鎚 40K - 回合 <span id="roundNum">1</span>/<span id="maxRoundNum">5</span></div>
     <div class="phase-indicator">
       <div class="phase-pip" data-phase="deployment">部署</div>
       <div class="phase-pip" data-phase="command">指揮</div>
@@ -1064,7 +1086,7 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
       <!-- 分數摘要條 -->
       <div class="score-summary">
         <div class="score-row">
-          <span class="score-cell round">R<span id="roundDisplay">1</span></span>
+          <span class="score-cell round">R<span id="roundDisplay">1</span>/<span id="maxRoundDisplay">5</span></span>
           <span class="score-cell p1" title="玩家一">
             <span class="vp">VP:<b id="p1VPDisplay">0</b></span>
             <span class="cp">CP:<b id="p1CPDisplay">0</b></span>
@@ -1710,6 +1732,8 @@ function syncGameStateFromFirebase(remoteState) {
   if (typeof updateMissionUI === 'function') updateMissionUI();  // 同步任務顯示
   document.getElementById("roundNum").textContent = gameState.round;
   document.getElementById("roundDisplay").textContent = gameState.round;
+  document.getElementById("maxRoundNum").textContent = gameState.maxRounds;
+  document.getElementById("maxRoundDisplay").textContent = gameState.maxRounds;
 
   // 顯示當前玩家
   const playerName = gameState.currentPlayer === 1 ? "玩家一" : "玩家二";
@@ -6387,17 +6411,18 @@ function showMeleeSlash(fromX, fromY, toX, toY, options = {}) {
 function showWeaponEffect(fromX, fromY, toX, toY, weapon) {
   const keywords = weapon.keywords || [];
   const name = (weapon.name || '').toLowerCase();
+  const keywordsStr = keywords.join(' ').toLowerCase();
 
   let type = 'beam';
   let color = '#ffaa00';
   let width = 3;
 
-  // 根據武器關鍵字判斷
-  if (keywords.includes('Melta')) {
+  // 根據武器關鍵字判斷（部分匹配）
+  if (keywordsStr.includes('melta') || name.includes('melta') || name.includes('熔')) {
     type = 'plasma';
     color = '#ff4400';
     width = 5;
-  } else if (keywords.includes('Plasma')) {
+  } else if (keywordsStr.includes('plasma') || name.includes('plasma') || name.includes('等離子') || name.includes('電漿')) {
     type = 'plasma';
     color = '#00aaff';
     width = 4;
@@ -6409,14 +6434,18 @@ function showWeaponEffect(fromX, fromY, toX, toY, weapon) {
     type = 'laser';
     color = '#ff0000';
     width = 2;
-  } else if (keywords.includes('Torrent')) {
+  } else if (keywordsStr.includes('torrent') || name.includes('火焰') || name.includes('flame')) {
     type = 'flame';
     color = '#ff6600';
     width = 8;
-  } else if (name.includes('bolt') || name.includes('爆矢')) {
+  } else if (name.includes('bolt') || name.includes('爆矢') || name.includes('boltgun')) {
     type = 'bolt';
     color = '#ffcc00';
     width = 3;
+  } else if (keywordsStr.includes('heavy') || name.includes('重型') || name.includes('砲')) {
+    type = 'beam';
+    color = '#ff8800';
+    width = 4;
   }
 
   showAttackLine(fromX, fromY, toX, toY, { type, color, width });
@@ -6426,7 +6455,8 @@ function showWeaponEffect(fromX, fromY, toX, toY, weapon) {
     showExplosion(toX, toY, {
       radius: width * 4,
       type: type === 'plasma' ? 'plasma' : type === 'gauss' ? 'electric' : 'normal',
-      particles: 8
+      particles: 8,
+      leaveScar: false // 普通攻擊不留痕跡
     });
   }, 200);
 }
@@ -7169,6 +7199,12 @@ function checkAutoBattle() {
 
 // AI主控制函數
 async function runAITurn() {
+  // 檢查遊戲是否已結束
+  if (gameState.phase === "gameOver") {
+    log("🛑 遊戲已結束", "info");
+    return;
+  }
+
   const isAI = (gameState.currentPlayer === 1 && ai1Enabled) || (gameState.currentPlayer === 2 && ai2Enabled);
   if (!isAI) return;
 
@@ -7180,7 +7216,8 @@ async function runAITurn() {
 
   const aiPlayer = gameState.currentPlayer;
   aiDifficulty = getAIDifficulty();
-  log(`🤖 AI-${aiPlayer} 正在思考... (難度: ${aiDifficulty})`, "info");
+  const difficultyName = aiDifficulty === "easy" ? "簡單" : aiDifficulty === "expert" ? "🧠 專家" : aiDifficulty === "normal" ? "普通" : "困難";
+  log(`🤖 AI-${aiPlayer} 正在思考... (難度: ${difficultyName})`, "info");
 
   await delay(500);
 
@@ -7304,7 +7341,8 @@ async function aiConsiderStratagem(phase, context = {}) {
   // 簡單難度：只有 20% 機率考慮使用戰略
   // 普通難度：50% 機率
   // 困難難度：80% 機率
-  const useChance = aiDifficulty === "easy" ? 0.2 : (aiDifficulty === "hard" ? 0.8 : 0.5);
+  // 專家難度：95% 機率，且會更精確地計算時機
+  const useChance = aiDifficulty === "easy" ? 0.2 : (aiDifficulty === "expert" ? 0.95 : (aiDifficulty === "hard" ? 0.8 : 0.5));
   if (Math.random() > useChance) return null;
 
   if (currentCP < 1) return null;
@@ -7461,6 +7499,19 @@ async function aiConsiderStratagem(phase, context = {}) {
       score *= 1.2;
     }
 
+    // 專家模式：最優化評估，考慮長期CP規劃
+    if (aiDifficulty === "expert") {
+      score *= 1.4;
+      // 專家模式會考慮剩餘回合數來規劃CP使用
+      const roundsLeft = gameState.maxRounds - gameState.round;
+      if (roundsLeft <= 2 && currentCP >= strat.cp) {
+        score *= 1.3; // 後期更願意使用CP
+      }
+      // 專家模式會考慮VP差距
+      const vpDiff = gameState.vp[aiPlayer] - gameState.vp[aiPlayer === 1 ? 2 : 1];
+      if (vpDiff < -5) score *= 1.2; // 落後時更積極使用戰略
+    }
+
     if (score > bestScore) {
       bestScore = score;
       bestStratagem = strat;
@@ -7468,10 +7519,11 @@ async function aiConsiderStratagem(phase, context = {}) {
   }
 
   // 決定是否使用（分數需要夠高）
-  const threshold = aiDifficulty === "easy" ? 60 : (aiDifficulty === "hard" ? 35 : 45);
+  // 專家模式：更低閾值，更願意使用戰略
+  const threshold = aiDifficulty === "easy" ? 60 : (aiDifficulty === "expert" ? 25 : (aiDifficulty === "hard" ? 35 : 45));
 
   if (bestStratagem && bestScore >= threshold) {
-    if (spendCP(aiPlayer, bestStratagem.cp)) {
+    if (spendCP(aiPlayer, bestStratagem.cp, bestStratagem.name)) {
       playSound('click');
       log(`🎴 AI使用【${bestStratagem.name}】(${bestStratagem.cp}CP)`, "phase");
       log(`   → ${bestStratagem.desc}`, "info");
@@ -7561,7 +7613,11 @@ async function aiMovementPhase() {
   const myUnits = gameState.units.filter(u => u.player === aiPlayer && u.alive && !u.hasMoved);
 
   for (const unit of myUnits) {
-    await delay(200);
+    // AI 選中單位（視覺回饋）
+    gameState.selectedUnit = unit;
+    showFloatingText(unit.x, unit.y - 20, "🤖 思考中...", { color: "#88ff88", fontSize: 12, duration: 600 });
+    await delay(400);
+
     const target = aiSelectMoveTarget(unit);
     if (target) {
       const maxDist = inchToPixels(unit.stats.M);
@@ -7600,6 +7656,18 @@ async function aiMovementPhase() {
         }
 
         if (newX !== unit.x || newY !== unit.y) {
+          // 顯示移動路徑
+          showAttackLine(unit.x, unit.y, newX, newY, {
+            type: 'beam',
+            color: 'rgba(34, 197, 94, 0.6)',
+            width: 2,
+            duration: 500,
+            muzzleFlash: false
+          });
+          showAura(newX, newY, { radius: 20, color: 'rgba(34, 197, 94, 0.4)', duration: 600 });
+
+          await delay(300);
+
           unit.x = newX;
           unit.y = newY;
           checkCover(unit);
@@ -7927,10 +7995,32 @@ function aiSelectMoveTarget(unit) {
     if (myOCNearby < enemyOCNearby && isHighOC) os.value += 50;
 
     // 困難模式：考慮OC穩固度
-    if (aiDifficulty === "hard") {
+    if (aiDifficulty === "hard" || aiDifficulty === "expert") {
       if (os.obj.control === aiPlayer && myOCNearby <= enemyOCNearby + unit.stats.OC) {
         os.value += 25; // 需要增援的己方目標
       }
+    }
+
+    // 專家模式：更精細的目標價值計算
+    if (aiDifficulty === "expert") {
+      const roundsLeft = gameState.maxRounds - gameState.round;
+      const vpDiff = gameState.vp[aiPlayer] - gameState.vp[aiPlayer === 1 ? 2 : 1];
+
+      // 後期更注重保持控制
+      if (roundsLeft <= 2) {
+        if (os.obj.control === aiPlayer) os.value += 40; // 保持控制
+        else os.value += 30; // 搶奪未控制目標
+      }
+
+      // 落後時更積極搶點
+      if (vpDiff < -5) os.value *= 1.3;
+
+      // 考慮敵方是否有高威脅單位在附近
+      const enemyThreats = enemies.filter(e =>
+        pixelsToInch(Math.hypot(e.x - os.obj.x, e.y - os.obj.y)) <= 8 &&
+        e.weapons?.melee
+      );
+      if (enemyThreats.length > 0) os.value -= 15; // 危險區域稍微減分
     }
   });
 
@@ -7981,8 +8071,8 @@ function aiSelectMoveTarget(unit) {
 
     if (inRangeEnemies.length > 0) {
       // 已有目標在射程內
-      if (aiDifficulty === "hard" || gameEval.strategy === "defensive") {
-        // 困難模式或防守策略：尋找掩護
+      if (aiDifficulty === "hard" || aiDifficulty === "expert" || gameEval.strategy === "defensive") {
+        // 困難/專家模式或防守策略：尋找掩護
         if (!unit.inCover) {
           const coverSpot = findNearestCover(unit);
           if (coverSpot) {
@@ -8028,7 +8118,7 @@ function aiSelectMoveTarget(unit) {
   // 低HP單位考慮撤退（但在搶分策略下可能堅守）
   if (isLowHP && !unit.inCover) {
     if (gameEval.strategy !== "objective_rush" || gameEval.vpDiff > -5) {
-      if (aiDifficulty === "hard") {
+      if (aiDifficulty === "hard" || aiDifficulty === "expert") {
         const coverSpot = findNearestCover(unit);
         if (coverSpot) {
           targetPosition = coverSpot;
@@ -8036,7 +8126,20 @@ function aiSelectMoveTarget(unit) {
         }
       }
     } else {
-      log(`💀 ${unit.name} 策略：堅守陣地（搶分優先）`, "info");
+      // 專家模式：計算是否值得堅守
+      if (aiDifficulty === "expert") {
+        const nearestObj = objectives.find(o =>
+          pixelsToInch(Math.hypot(unit.x - o.x, unit.y - o.y)) <= 3 && o.control === aiPlayer
+        );
+        if (nearestObj) {
+          log(`💀 ${unit.name} 策略：為控制目標${nearestObj.id}而堅守`, "info");
+        } else {
+          const coverSpot = findNearestCover(unit);
+          if (coverSpot) targetPosition = coverSpot;
+        }
+      } else {
+        log(`💀 ${unit.name} 策略：堅守陣地（搶分優先）`, "info");
+      }
     }
   }
 
@@ -8068,7 +8171,11 @@ async function aiShootingPhase() {
   }
 
   for (const unit of myUnits) {
-    await delay(300);
+    // AI 選中射擊單位
+    gameState.selectedUnit = unit;
+    showFloatingText(unit.x, unit.y - 20, "🎯 瞄準中...", { color: "#ffaa00", fontSize: 12, duration: 500 });
+    await delay(400);
+
     const target = aiSelectShootTarget(unit);
 
     if (target) {
@@ -8088,6 +8195,11 @@ async function aiShootingPhase() {
       if (distance <= weapon.range) {
         gameState.selectedUnit = unit;
         gameState.targetUnit = target;
+
+        // 顯示目標選擇
+        showAura(target.x, target.y, { radius: 30, color: 'rgba(255, 0, 0, 0.5)', duration: 800 });
+        showAttackLine(unit.x, unit.y, target.x, target.y, { type: 'beam', color: 'rgba(255, 100, 100, 0.3)', duration: 300, muzzleFlash: false });
+        await delay(300);
 
         // 對重要目標考慮使用額外戰略
         if (!phaseStratagem && target.keywords?.includes("Character") && gameState.cp[aiPlayer] >= 1) {
@@ -8216,8 +8328,8 @@ function aiSelectShootTarget(unit) {
     // 6. 無掩護目標（更容易造成傷害）
     if (!enemy.inCover) score += 15;
 
-    // 7. 困難模式：更精細的效率計算
-    if (aiDifficulty === "hard") {
+    // 7. 困難/專家模式：更精細的效率計算
+    if (aiDifficulty === "hard" || aiDifficulty === "expert") {
       const woundRoll = getWoundRoll(weapon.S, enemy.stats.T);
       score += (7 - woundRoll) * 8; // 越容易致傷越好
 
@@ -8231,6 +8343,27 @@ function aiSelectShootTarget(unit) {
       // 優先攻擊沒有掩護的高價值目標
       if (!enemy.inCover && enemy.points > 100) score += 20;
 
+      // 專家模式：更深層次的戰略分析
+      if (aiDifficulty === "expert") {
+        // 分析消滅此目標對任務的影響
+        const isOnObjective = objectives.some(o =>
+          pixelsToInch(Math.hypot(enemy.x - o.x, enemy.y - o.y)) <= 3
+        );
+        if (isOnObjective) score += 35; // 清除佔點敵人優先
+
+        // 考慮連鎖效應：消滅領袖可能導致其他單位戰慄
+        if (enemy.isLeader || enemy.keywords?.includes("Character")) {
+          const nearbyAllies = enemies.filter(e =>
+            e.id !== enemy.id &&
+            pixelsToInch(Math.hypot(e.x - enemy.x, e.y - enemy.y)) <= 6
+          );
+          score += nearbyAllies.length * 8; // 附近有越多友軍越值得優先消滅
+        }
+
+        // 專家模式不會浪費火力在即將死亡的低威脅目標上
+        if (enemy.currentHP <= 2 && threat < 10) score -= 15;
+      }
+
       // 防守策略時優先清除威脅我方目標的敵人
       if (gameEval.strategy === "defensive" && objNear && objNear.control === unit.player) {
         score += 40;
@@ -8243,8 +8376,9 @@ function aiSelectShootTarget(unit) {
   scored.sort((a, b) => b.score - a.score);
 
   // 記錄AI思考過程
-  if (aiDifficulty === "hard" && scored.length > 0) {
-    log(`🧠 目標分析：${scored[0].enemy.name}(${scored[0].score.toFixed(0)}分)`, "info");
+  if ((aiDifficulty === "hard" || aiDifficulty === "expert") && scored.length > 0) {
+    const prefix = aiDifficulty === "expert" ? "🧠💡" : "🧠";
+    log(`${prefix} 目標分析：${scored[0].enemy.name}(${scored[0].score.toFixed(0)}分)`, "info");
   }
 
   return scored[0].enemy;
@@ -8271,10 +8405,17 @@ async function aiChargePhase() {
     });
 
     if (nearbyEnemies.length > 0 && shouldCharge(unit, nearbyEnemies)) {
-      await delay(300);
+      // AI 選中衝鋒單位
+      gameState.selectedUnit = unit;
+      showFloatingText(unit.x, unit.y - 20, "🏃 準備衝鋒!", { color: "#ff8800", fontSize: 12, duration: 500 });
+      await delay(400);
 
       // 策略性衝鋒目標選擇
       const target = aiSelectChargeTarget(unit, nearbyEnemies);
+
+      // 顯示衝鋒目標
+      showAura(target.x, target.y, { radius: 30, color: 'rgba(255, 100, 0, 0.5)', duration: 800 });
+      showAttackLine(unit.x, unit.y, target.x, target.y, { type: 'beam', color: 'rgba(255, 150, 0, 0.4)', duration: 400, muzzleFlash: false });
 
       let roll1 = rollD6();
       let roll2 = rollD6();
@@ -8354,8 +8495,8 @@ function shouldCharge(unit, enemies) {
   // 近戰專精單位優先衝鋒
   if (!unit.weapons.ranged) return true;
 
-  // 困難模式：分析是否有利
-  if (aiDifficulty === "hard") {
+  // 困難/專家模式：分析是否有利
+  if (aiDifficulty === "hard" || aiDifficulty === "expert") {
     const nearestEnemy = findNearest(unit, enemies);
     if (nearestEnemy) {
       const myMelee = unit.weapons.melee;
@@ -8369,6 +8510,26 @@ function shouldCharge(unit, enemies) {
         pixelsToInch(Math.hypot(nearestEnemy.x - o.x, nearestEnemy.y - o.y)) <= 3
       );
       if (nearObjective) return true;
+
+      // 專家模式：更精細的衝鋒決策
+      if (aiDifficulty === "expert") {
+        const myHP = unit.currentHP;
+        const myMaxHP = unit.maxHP;
+        const hpRatio = myHP / myMaxHP;
+
+        // 如果我方血量健康且敵方血量低，積極衝鋒
+        if (hpRatio > 0.5 && enemyHP / nearestEnemy.maxHP < 0.4) return true;
+
+        // 衝鋒後可能佔領目標
+        const chargeToObjective = gameState.objectives.some(o => {
+          const distToObj = pixelsToInch(Math.hypot(nearestEnemy.x - o.x, nearestEnemy.y - o.y));
+          return distToObj <= 4 && o.control !== unit.player;
+        });
+        if (chargeToObjective) return true;
+
+        // 後期回合更積極衝鋒（爭取VP）
+        if (gameState.round >= 4) return true;
+      }
     }
   }
 
@@ -8409,11 +8570,24 @@ function aiSelectChargeTarget(unit, enemies) {
     const hpRatio = enemy.currentHP / enemy.maxHP;
     score += (1 - hpRatio) * 30;
 
-    // 困難模式：考慮威脅
-    if (aiDifficulty === "hard") {
+    // 困難/專家模式：考慮威脅
+    if (aiDifficulty === "hard" || aiDifficulty === "expert") {
       // 優先消滅高威脅目標
       const threat = calculateThreat(enemy);
       score += threat * 15;
+
+      // 專家模式：更深入分析衝鋒價值
+      if (aiDifficulty === "expert") {
+        // 衝鋒後可佔領的目標加分
+        const objNear = objectives.find(o =>
+          pixelsToInch(Math.hypot(enemy.x - o.x, enemy.y - o.y)) <= 4
+        );
+        if (objNear && objNear.control !== unit.player) score += 30;
+
+        // 考慮衝鋒成功率（距離越近越好）
+        const chargeSuccess = Math.max(0, (12 - dist) / 12);
+        score *= (0.5 + chargeSuccess * 0.5);
+      }
     }
 
     return { enemy, score };
@@ -8443,6 +8617,11 @@ async function aiFightPhase() {
   for (const unit of myUnitsInOrder) {
     if (unit.hasFought) continue;
 
+    // AI 選中近戰單位
+    gameState.selectedUnit = unit;
+    showFloatingText(unit.x, unit.y - 20, "⚔️ 準備近戰", { color: "#ff6666", fontSize: 12, duration: 500 });
+    await delay(300);
+
     // ===== Pile In: 近戰前3"移向最近敵人 =====
     await performPileIn(unit);
 
@@ -8453,12 +8632,16 @@ async function aiFightPhase() {
     });
 
     if (meleeRange.length > 0) {
-      await delay(300);
+      await delay(200);
       const target = aiSelectMeleeTarget(unit, meleeRange);
 
       if (target) {
         gameState.selectedUnit = unit;
         gameState.targetUnit = target;
+
+        // 顯示目標選擇
+        showAura(target.x, target.y, { radius: 25, color: 'rgba(255, 50, 50, 0.6)', duration: 600 });
+        await delay(200);
 
         // 對重要目標考慮使用額外戰略
         if (!fightStratagem && target.keywords?.includes("Character") && gameState.cp[aiPlayer] >= 1) {
@@ -8530,14 +8713,31 @@ function aiSelectMeleeTarget(unit, enemies) {
     // 角色目標（消滅可能造成戰慄）
     if (enemy.keywords?.includes("Character")) score += 25;
 
-    // 困難模式：考慮傷害效率
-    if (aiDifficulty === "hard") {
+    // 困難/專家模式：考慮傷害效率
+    if (aiDifficulty === "hard" || aiDifficulty === "expert") {
       const woundRoll = getWoundRoll(weapon.S, enemy.stats.T);
       score += (7 - woundRoll) * 6;
 
       // 低護甲敵人更容易造成傷害
       const effectiveSave = Math.max(2, enemy.stats.Sv - (weapon.AP || 0));
       score += (7 - effectiveSave) * 4;
+
+      // 專家模式：更深層次的近戰分析
+      if (aiDifficulty === "expert") {
+        // 考慮敵方反擊能力
+        if (enemy.weapons?.melee) {
+          const enemyDamage = estimateDamage(enemy.weapons.melee, unit);
+          score -= enemyDamage * 2; // 避免與危險敵人纏鬥
+        }
+
+        // 優先消滅佔點敵人
+        const onObjective = objectives.find(o =>
+          pixelsToInch(Math.hypot(enemy.x - o.x, enemy.y - o.y)) <= 3
+        );
+        if (onObjective && onObjective.control !== unit.player) {
+          score += 40;
+        }
+      }
     }
 
     return { enemy, score };
@@ -8768,11 +8968,245 @@ function isNearAllyMonster(target, attackerPlayer) {
   return false;
 }
 
+// ========== 競技預設組合 ==========
+const PRESET_ARMIES = {
+  "necrons": [
+    // ===== 1000分組合 =====
+    {
+      name: "【1000分】夜靈突襲",
+      detachment: "hypercrypt-legion",
+      units: ["nc-ctan-nightbringer", "nc-overlord", "nc-immortals", "nc-immortals", "nc-wraiths", "nc-skorpekh"]
+    },
+    {
+      name: "【1000分】毀滅者軍團",
+      detachment: "annihilation-legion",
+      units: ["nc-skorpekh-lord", "nc-skorpekh", "nc-skorpekh", "nc-lokhust-destroyers", "nc-hexmark", "nc-warriors", "nc-scarabs"]
+    },
+    {
+      name: "【1000分】科技術士",
+      detachment: "canoptek-court",
+      units: ["nc-technomancer", "nc-chronomancer", "nc-wraiths", "nc-wraiths", "nc-doomstalker", "nc-spyder", "nc-scarabs"]
+    },
+    // ===== 2000分組合 =====
+    {
+      name: "【2000分】寂靜王+夜靈",
+      detachment: "starshatter-arsenal",
+      units: ["nc-silentking", "nc-ctan-nightbringer", "nc-chronomancer", "nc-wraiths", "nc-wraiths", "nc-doomsdayark", "nc-immortals", "nc-immortals"]
+    },
+    {
+      name: "【2000分】雙C'tan",
+      detachment: "hypercrypt-legion",
+      units: ["nc-ctan-nightbringer", "nc-ctan-deceiver", "nc-hexmark", "nc-hexmark", "nc-deathmarks", "nc-doomsdayark", "nc-wraiths", "nc-tombblades"]
+    },
+    {
+      name: "【2000分】銀潮軍團",
+      detachment: "awakened-dynasty",
+      units: ["nc-overlord", "nc-skorpekh-lord", "nc-szeras", "nc-warriors", "nc-warriors", "nc-lychguard", "nc-spyder", "nc-skorpekh"]
+    }
+  ],
+  "tyranids": [
+    // ===== 1000分組合 =====
+    {
+      name: "【1000分】怪獸壓制",
+      detachment: "invasion-fleet",
+      units: ["ty-hivetyrant", "ty-exocrine", "ty-carnifex", "ty-zoanthropes", "ty-termagants", "ty-warriors"]
+    },
+    {
+      name: "【1000分】地下突襲",
+      detachment: "subterranean-assault",
+      units: ["ty-neurotyrant", "ty-mawloc", "ty-trygon", "ty-genestealers", "ty-raveners", "ty-termagants"]
+    },
+    {
+      name: "【1000分】蟲海淹沒",
+      detachment: "invasion-fleet",
+      units: ["ty-tervigon", "ty-broodlord", "ty-termagants", "ty-termagants", "ty-hormagaunts", "ty-hormagaunts", "ty-gargoyles"]
+    },
+    // ===== 2000分組合 =====
+    {
+      name: "【2000分】三Exocrine砲擊",
+      detachment: "invasion-fleet",
+      units: ["ty-hivetyrant", "ty-exocrine", "ty-exocrine", "ty-exocrine", "ty-maleceptor", "ty-zoanthropes", "ty-termagants", "ty-termagants"]
+    },
+    {
+      name: "【2000分】Norn使者佔點",
+      detachment: "subterranean-assault",
+      units: ["ty-nornemissary", "ty-neurotyrant", "ty-mawloc", "ty-trygon", "ty-warriors", "ty-genestealers", "ty-carnifex", "ty-carnifex"]
+    },
+    {
+      name: "【2000分】蟲海戰術",
+      detachment: "invasion-fleet",
+      units: ["ty-tervigon", "ty-hivetyrant", "ty-termagants", "ty-termagants", "ty-termagants", "ty-hormagaunts", "ty-hormagaunts", "ty-tyrannofex"]
+    }
+  ],
+  "orks": [
+    // ===== 1000分組合 =====
+    {
+      name: "【1000分】Dakka火力",
+      detachment: "more-dakka",
+      units: ["or-warboss", "or-bigmek", "or-lootas", "or-tankbustas", "or-boyz", "or-boyz", "or-deffkoptas"]
+    },
+    {
+      name: "【1000分】重裝頭頭",
+      detachment: "bully-boyz",
+      units: ["or-warboss", "or-painboy", "or-meganobz", "or-meganobz", "or-nobz", "or-boyz"]
+    },
+    {
+      name: "【1000分】快速突擊",
+      detachment: "kult-of-speed",
+      units: ["or-warboss", "or-weirdboy", "or-deffkoptas", "or-stormboyz", "or-stormboyz", "or-kommandos"]
+    },
+    // ===== 2000分組合 =====
+    {
+      name: "【2000分】Dakka卡車隊",
+      detachment: "more-dakka",
+      units: ["or-ghazghkull", "or-bigmek", "or-lootas", "or-lootas", "or-tankbustas", "or-boyz", "or-boyz", "or-deffkoptas"]
+    },
+    {
+      name: "【2000分】Meganobz重裝",
+      detachment: "bully-boyz",
+      units: ["or-warboss", "or-bigmek", "or-meganobz", "or-meganobz", "or-meganobz", "or-nobz", "or-boyz", "or-boyz"]
+    },
+    {
+      name: "【2000分】速度Waagh",
+      detachment: "kult-of-speed",
+      units: ["or-warboss", "or-weirdboy", "or-deffkoptas", "or-deffkoptas", "or-stormboyz", "or-stormboyz", "or-kommandos", "or-boyz"]
+    }
+  ],
+  "space-marines": [
+    // ===== 1000分組合 =====
+    {
+      name: "【1000分】終結者精英",
+      detachment: "gladius-task-force",
+      units: ["sm-captain", "sm-terminators", "sm-intercessors", "sm-intercessors", "sm-eradicators", "sm-dreadnought"]
+    },
+    {
+      name: "【1000分】火力支援",
+      detachment: "firestorm-assault-force",
+      units: ["sm-captain", "sm-hellblasters", "sm-devastators", "sm-intercessors", "sm-tactical", "sm-predator"]
+    },
+    {
+      name: "【1000分】突擊先鋒",
+      detachment: "vanguard-spearhead",
+      units: ["sm-captain", "sm-assault-marines", "sm-vanguard-veterans", "sm-intercessors", "sm-tactical", "sm-rhino"]
+    },
+    // ===== 2000分組合 =====
+    {
+      name: "【2000分】終結者突擊",
+      detachment: "gladius-task-force",
+      units: ["sm-captain", "sm-chaplain", "sm-terminators", "sm-assault-terminators", "sm-intercessors", "sm-intercessors", "sm-eradicators", "sm-dreadnought"]
+    },
+    {
+      name: "【2000分】火力壓制",
+      detachment: "firestorm-assault-force",
+      units: ["sm-captain", "sm-librarian", "sm-hellblasters", "sm-devastators", "sm-aggressors", "sm-intercessors", "sm-predator", "sm-gladiator"]
+    },
+    {
+      name: "【2000分】快速打擊",
+      detachment: "stormlance-task-force",
+      units: ["sm-captain", "sm-chaplain", "sm-assault-marines", "sm-vanguard-veterans", "sm-intercessors", "sm-tactical", "sm-rhino", "sm-repulsor"]
+    }
+  ],
+  "chaos": [
+    {
+      name: "【1000分】乞血狂徒",
+      detachment: "default",
+      units: ["ch-lord", "ch-berzerkers", "ch-berzerkers", "ch-legionaries", "ch-helbrute"]
+    },
+    {
+      name: "【2000分】乞血軍團",
+      detachment: "default",
+      units: ["ch-lord", "ch-berzerkers", "ch-berzerkers", "ch-legionaries", "ch-legionaries", "ch-havocs", "ch-helbrute"]
+    }
+  ]
+};
+
+// 更新預設組合下拉選單
+function updatePresetOptions(player) {
+  const factionId = document.getElementById(`p${player}Faction`).value;
+  const presetSelect = document.getElementById(`p${player}PresetSelect`);
+
+  if (!presetSelect) return;
+
+  presetSelect.innerHTML = '<option value="">-- 選擇競技組合 --</option>';
+
+  const presets = PRESET_ARMIES[factionId];
+  if (presets && presets.length > 0) {
+    presets.forEach((preset, index) => {
+      const option = document.createElement("option");
+      option.value = index;
+      option.textContent = preset.name;
+      presetSelect.appendChild(option);
+    });
+  }
+}
+
+// 載入預設組合
+function loadPresetArmy(player) {
+  const factionId = document.getElementById(`p${player}Faction`).value;
+  const presetSelect = document.getElementById(`p${player}PresetSelect`);
+  const presetIndex = presetSelect.value;
+
+  if (presetIndex === "") return;
+
+  const preset = PRESET_ARMIES[factionId]?.[parseInt(presetIndex)];
+  if (!preset) return;
+
+  // 清空當前軍表
+  armyRosters[player] = [];
+
+  // 設置種族規則
+  const detachmentSelect = document.getElementById(`p${player}Detachment`);
+  if (detachmentSelect && preset.detachment) {
+    // 嘗試選擇對應的種族規則
+    const options = Array.from(detachmentSelect.options);
+    const matchOption = options.find(opt => opt.value === preset.detachment);
+    if (matchOption) {
+      detachmentSelect.value = preset.detachment;
+      selectDetachment(player);
+    }
+  }
+
+  // 添加單位
+  const faction = UNIT_DATABASE[factionId];
+  let addedCount = 0;
+  let skippedUnits = [];
+
+  preset.units.forEach(unitId => {
+    const unit = faction.units.find(u => u.id === unitId);
+    if (unit) {
+      // 檢查點數上限
+      const currentPoints = armyRosters[player].reduce((sum, u) => sum + u.points, 0);
+      if (currentPoints + unit.points <= maxPoints) {
+        armyRosters[player].push({ ...unit, faction: factionId, uid: Date.now() + Math.random() });
+        addedCount++;
+      } else {
+        skippedUnits.push(unit.name);
+      }
+    }
+  });
+
+  updateRosterDisplay(player);
+  checkStartButton();
+  syncArmyToFirebase(player);
+
+  // 顯示結果
+  const totalPoints = armyRosters[player].reduce((sum, u) => sum + u.points, 0);
+  console.log(`✅ 載入預設組合: ${preset.name}`);
+  console.log(`   添加 ${addedCount} 個單位, 總計 ${totalPoints} 點`);
+
+  if (skippedUnits.length > 0) {
+    alert(`⚠️ 因點數上限，以下單位未能加入：\n${skippedUnits.join(", ")}`);
+  }
+}
+
 // ========== 軍表配置功能 ==========
 function updateAvailableUnits(player) {
   const factionId = document.getElementById(`p${player}Faction`).value;
   const faction = UNIT_DATABASE[factionId];
   const grid = document.getElementById(`p${player}UnitGrid`);
+
+  // 更新預設組合選單
+  updatePresetOptions(player);
 
   grid.innerHTML = "";
 
@@ -9451,10 +9885,10 @@ function continueStartBattle() {
 
   if (ai1Enabled && ai2Enabled) {
     log(`🤖 VS 🤖 AI自動對戰模式`, "phase");
-    log(`難度: ${aiDifficulty === "easy" ? "簡單" : aiDifficulty === "normal" ? "普通" : "困難"}`, "info");
+    log(`難度: ${aiDifficulty === "easy" ? "簡單" : aiDifficulty === "expert" ? "🧠 專家" : aiDifficulty === "normal" ? "普通" : "困難"}`, "info");
   } else {
     log(`回合 1 - ${ai1Enabled ? "AI-1" : "玩家一"} 先攻`, "info");
-    if (ai2Enabled) log(`🤖 對手AI難度: ${aiDifficulty === "easy" ? "簡單" : aiDifficulty === "normal" ? "普通" : "困難"}`, "info");
+    if (ai2Enabled) log(`🤖 對手AI難度: ${aiDifficulty === "easy" ? "簡單" : aiDifficulty === "expert" ? "🧠 專家" : aiDifficulty === "normal" ? "普通" : "困難"}`, "info");
   }
 
   // 進入部署階段
@@ -9884,10 +10318,34 @@ function gainCPAtCommandStart() {
   updateTacticalObjectivesUI();
 }
 
-function spendCP(player, amount) {
+function spendCP(player, amount, stratagemName = null) {
   if (gameState.cp[player] >= amount) {
     gameState.cp[player] -= amount;
     updateCPDisplay();
+
+    // CP 使用視覺回饋
+    const isAI = (player === 1 && ai1Enabled) || (player === 2 && ai2Enabled);
+    if (isAI) {
+      // 找到 AI 當前選中的單位來顯示效果
+      const unit = gameState.selectedUnit;
+      if (unit) {
+        showFloatingText(unit.x, unit.y - 40, `⚡ -${amount} CP`, {
+          color: "#fbbf24",
+          fontSize: 16,
+          duration: 1200
+        });
+        if (stratagemName) {
+          showFloatingText(unit.x, unit.y - 60, `🎴 ${stratagemName}`, {
+            color: "#22c55e",
+            fontSize: 14,
+            duration: 1500
+          });
+        }
+        showAura(unit.x, unit.y, { radius: 50, color: 'rgba(251, 191, 36, 0.4)', duration: 1000 });
+        playSound('stratagem');
+      }
+    }
+
     return true;
   }
   return false;
@@ -11399,8 +11857,8 @@ async function handleCanvasClick(x, y) {
       let useOverwatch = false;
 
       if (isDefenderAI) {
-        // AI 決定是否使用 Overwatch (簡單AI隨機，困難AI更可能使用)
-        const overwatchChance = aiDifficulty === "hard" ? 0.6 : (aiDifficulty === "normal" ? 0.3 : 0.1);
+        // AI 決定是否使用 Overwatch (專家最高機率，簡單最低)
+        const overwatchChance = aiDifficulty === "expert" ? 0.85 : (aiDifficulty === "hard" ? 0.6 : (aiDifficulty === "normal" ? 0.3 : 0.1));
         useOverwatch = Math.random() < overwatchChance;
       } else {
         // 玩家決定 - 顯示確認對話框
@@ -12798,7 +13256,7 @@ async function checkTankShock(charger, target) {
   if (isChargerAI) {
     // AI決定是否使用坦克衝擊（根據目標價值和剩餘CP）
     const targetValue = target.points || 100;
-    const chance = aiDifficulty === "hard" ? 0.7 : (aiDifficulty === "normal" ? 0.4 : 0.2);
+    const chance = aiDifficulty === "expert" ? 0.9 : (aiDifficulty === "hard" ? 0.7 : (aiDifficulty === "normal" ? 0.4 : 0.2));
     useTankShock = Math.random() < chance && gameState.cp[chargerPlayer] >= 2;
   } else {
     // 玩家決定
@@ -12945,9 +13403,9 @@ async function checkHeroicIntervention(charger, chargeTarget) {
     let useIntervention = false;
 
     if (isDefenderAI) {
-      // AI決定是否使用英勇介入（簡單：角色血量高時更可能介入）
+      // AI決定是否使用英勇介入（專家最積極，簡單最保守）
       const hpRatio = character.currentHP / character.maxHP;
-      const chance = aiDifficulty === "hard" ? 0.7 : (aiDifficulty === "normal" ? 0.4 : 0.2);
+      const chance = aiDifficulty === "expert" ? 0.85 : (aiDifficulty === "hard" ? 0.7 : (aiDifficulty === "normal" ? 0.4 : 0.2));
       useIntervention = Math.random() < (chance * hpRatio);
     } else {
       // 玩家決定
@@ -14338,6 +14796,12 @@ async function nextPhase() {
 }
 
 function endTurn() {
+  // 檢查遊戲是否已結束
+  if (gameState.phase === "gameOver") {
+    log("🛑 遊戲已結束", "info");
+    return;
+  }
+
   // 線上模式：只有當前回合的玩家可以結束回合
   if (isOnlineMode && !isMyTurn()) {
     log('等待對手回合...', 'info');
@@ -14397,6 +14861,12 @@ function endTurn() {
       gameState.missionProgress[2].killedCharacterThisRound = false;
       gameState.missionProgress[1].lostUnitsThisRound = 0;
       gameState.missionProgress[2].lostUnitsThisRound = 0;
+    }
+
+    // ===== 檢查是否達到最大回合數（回合5結束後結算勝負） =====
+    if (gameState.round >= gameState.maxRounds) {
+      endGameByVP();
+      return;  // 遊戲結束，不再繼續
     }
 
     gameState.round++;
@@ -14630,25 +15100,118 @@ function checkVictory() {
     const winner = ai2Enabled ? "🤖 AI-2" : "玩家二";
     const loser = ai1Enabled ? "AI-1" : "玩家一";
     playSound('victory'); // 音效：勝利
-    log(`🏆 ${winner} 勝利！`, "phase");
+    log(`🏆 ${winner} 勝利！（殲滅勝利）`, "phase");
+    gameState.phase = "gameOver";
     if (ai1Enabled && ai2Enabled) {
-      alert(`🤖 VS 🤖 對戰結束！\n${winner} 擊敗了 ${loser}！`);
+      alert(`🤖 VS 🤖 對戰結束！\n${winner} 殲滅了 ${loser} 的所有部隊！`);
     } else {
-      alert(`遊戲結束！${winner}勝利！`);
+      alert(`遊戲結束！${winner}勝利！\n（殲滅勝利）`);
     }
   } else if (p2Alive === 0) {
     const winner = ai1Enabled ? "🤖 AI-1" : "玩家一";
     const loser = ai2Enabled ? "AI-2" : "玩家二";
     playSound('victory'); // 音效：勝利
-    log(`🏆 ${winner} 勝利！`, "phase");
+    log(`🏆 ${winner} 勝利！（殲滅勝利）`, "phase");
+    gameState.phase = "gameOver";
     if (ai1Enabled && ai2Enabled) {
-      alert(`🤖 VS 🤖 對戰結束！\n${winner} 擊敗了 ${loser}！`);
+      alert(`🤖 VS 🤖 對戰結束！\n${winner} 殲滅了 ${loser} 的所有部隊！`);
     } else if (ai2Enabled) {
-      alert("🎉 恭喜！你擊敗了AI！");
+      alert("🎉 恭喜！你擊敗了AI！\n（殲滅勝利）");
     } else {
-      alert(`遊戲結束！${winner}勝利！`);
+      alert(`遊戲結束！${winner}勝利！\n（殲滅勝利）`);
     }
   }
+}
+
+// ========== VP結算勝利（5回合結束） ==========
+function endGameByVP() {
+  const vp1 = gameState.vp[1];
+  const vp2 = gameState.vp[2];
+
+  const p1Name = ai1Enabled ? "🤖 AI-1" : "玩家一";
+  const p2Name = ai2Enabled ? "🤖 AI-2" : "玩家二";
+
+  log(`══════ 遊戲結束！第 ${gameState.maxRounds} 回合結算 ══════`, "phase");
+  log(`📊 最終VP: ${p1Name} ${vp1} vs ${p2Name} ${vp2}`, "phase");
+
+  // 統計額外資訊
+  const p1Alive = gameState.units.filter(u => u.player === 1 && u.alive).length;
+  const p2Alive = gameState.units.filter(u => u.player === 2 && u.alive).length;
+  const p1Objectives = gameState.objectives.filter(o => o.control === 1).length;
+  const p2Objectives = gameState.objectives.filter(o => o.control === 2).length;
+
+  gameState.phase = "gameOver";
+  playSound('victory');
+
+  let resultMessage = "";
+  let winner = "";
+  let loser = "";
+
+  if (vp1 > vp2) {
+    winner = p1Name;
+    loser = p2Name;
+    resultMessage = `🏆 ${winner} 勝利！\n\n` +
+                   `━━━ 最終戰報 ━━━\n` +
+                   `📊 VP: ${vp1} vs ${vp2} (差距 ${vp1 - vp2})\n` +
+                   `🎯 控制目標: ${p1Objectives} vs ${p2Objectives}\n` +
+                   `⚔️ 存活單位: ${p1Alive} vs ${p2Alive}\n` +
+                   `━━━━━━━━━━━━━━━━\n` +
+                   `勝利方式：VP勝利`;
+    log(`🏆 ${winner} 以 ${vp1} : ${vp2} VP 獲勝！`, "phase");
+  } else if (vp2 > vp1) {
+    winner = p2Name;
+    loser = p1Name;
+    resultMessage = `🏆 ${winner} 勝利！\n\n` +
+                   `━━━ 最終戰報 ━━━\n` +
+                   `📊 VP: ${vp1} vs ${vp2} (差距 ${vp2 - vp1})\n` +
+                   `🎯 控制目標: ${p1Objectives} vs ${p2Objectives}\n` +
+                   `⚔️ 存活單位: ${p1Alive} vs ${p2Alive}\n` +
+                   `━━━━━━━━━━━━━━━━\n` +
+                   `勝利方式：VP勝利`;
+    log(`🏆 ${winner} 以 ${vp2} : ${vp1} VP 獲勝！`, "phase");
+  } else {
+    // VP 平手時，比較存活單位數量
+    if (p1Alive > p2Alive) {
+      winner = p1Name;
+      loser = p2Name;
+      resultMessage = `🏆 ${winner} 勝利！\n\n` +
+                     `━━━ 最終戰報 ━━━\n` +
+                     `📊 VP: ${vp1} vs ${vp2} (平手)\n` +
+                     `🎯 控制目標: ${p1Objectives} vs ${p2Objectives}\n` +
+                     `⚔️ 存活單位: ${p1Alive} vs ${p2Alive}\n` +
+                     `━━━━━━━━━━━━━━━━\n` +
+                     `勝利方式：VP平手，存活單位較多`;
+      log(`🏆 VP平手！${winner} 以存活單位 ${p1Alive} : ${p2Alive} 獲勝！`, "phase");
+    } else if (p2Alive > p1Alive) {
+      winner = p2Name;
+      loser = p1Name;
+      resultMessage = `🏆 ${winner} 勝利！\n\n` +
+                     `━━━ 最終戰報 ━━━\n` +
+                     `📊 VP: ${vp1} vs ${vp2} (平手)\n` +
+                     `🎯 控制目標: ${p1Objectives} vs ${p2Objectives}\n` +
+                     `⚔️ 存活單位: ${p1Alive} vs ${p2Alive}\n` +
+                     `━━━━━━━━━━━━━━━━\n` +
+                     `勝利方式：VP平手，存活單位較多`;
+      log(`🏆 VP平手！${winner} 以存活單位 ${p2Alive} : ${p1Alive} 獲勝！`, "phase");
+    } else {
+      // 完全平手
+      resultMessage = `🤝 完全平手！\n\n` +
+                     `━━━ 最終戰報 ━━━\n` +
+                     `📊 VP: ${vp1} vs ${vp2}\n` +
+                     `🎯 控制目標: ${p1Objectives} vs ${p2Objectives}\n` +
+                     `⚔️ 存活單位: ${p1Alive} vs ${p2Alive}\n` +
+                     `━━━━━━━━━━━━━━━━\n` +
+                     `雙方勢均力敵！`;
+      log(`🤝 完全平手！VP ${vp1} : ${vp2}，存活 ${p1Alive} : ${p2Alive}`, "phase");
+    }
+  }
+
+  // 更新顯示
+  updateVPDisplay();
+  render();
+
+  // 顯示結果彈窗
+  alert(resultMessage);
 }
 
 // ========== UI 更新 ==========
