@@ -546,7 +546,7 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
   <div class="setup-header">
     <h1>⚔️ 戰鎚 40,000 ⚔️</h1>
     <p>第十版核心規則 - 軍表配置</p>
-    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.0.1 (2026-02-07)</p>
+    <p style="font-size: 11px; color: #666; margin-top: 4px;">版本 1.0.3 (2026-02-07)</p>
   </div>
 
   <!-- 連線對戰選項 -->
@@ -1143,7 +1143,8 @@ function listenToRoom() {
 
     // 即時顯示對手的軍隊配置（設定階段）
     const setupScreenEl = document.getElementById('setupScreen');
-    console.log('[listenToRoom] 收到資料:', { hasArmies: !!data.armies, isHost, setupVisible: setupScreenEl?.style.display });
+    console.log('[listenToRoom] 完整資料:', JSON.stringify(data, null, 2));
+    console.log('[listenToRoom] 收到資料:', { hasArmies: !!data.armies, armies: data.armies, isHost, setupVisible: setupScreenEl?.style.display });
     if (setupScreenEl && setupScreenEl.style.display !== 'none' && data.armies) {
       const opponentId = isHost ? 2 : 1;
       console.log('[listenToRoom] 檢查對手軍隊:', opponentId, data.armies[opponentId]);
@@ -4804,18 +4805,22 @@ function syncArmyToFirebase(player) {
   console.log('[syncArmy] 上傳軍隊:', roster.length, '個單位');
   roomRef.child(`armies/${player}`).set({
     roster: roster.map(u => ({
-      id: u.id,
-      name: u.name,
-      points: u.points,
-      stats: u.stats,
-      weapons: u.weapons,
-      abilities: u.abilities,
-      keywords: u.keywords,
-      inv: u.inv,
-      img: u.img
+      id: u.id || '',
+      name: u.name || '',
+      points: u.points || 0,
+      stats: u.stats || {},
+      weapons: u.weapons || [],
+      abilities: u.abilities || [],
+      keywords: u.keywords || [],
+      inv: u.inv || null,
+      img: u.img || ''
     })),
     faction: factionSelect ? factionSelect.value : '',
     detachment: detachmentSelect ? detachmentSelect.value : ''
+  }).then(() => {
+    console.log('[syncArmy] 上傳成功！');
+  }).catch(err => {
+    console.error('[syncArmy] 上傳失敗:', err);
   });
 }
 
