@@ -979,10 +979,12 @@ function switchGameMode(mode) {
 
   // 線上模式時隱藏AI選項
   if (isOnlineMode) {
-    document.getElementById('ai1ModeToggle').checked = false;
-    document.getElementById('ai2ModeToggle').checked = false;
-    toggleAI1Mode();
-    toggleAI2Mode();
+    const ai1Toggle = document.getElementById('ai1ModeToggle');
+    const ai2Toggle = document.getElementById('ai2ModeToggle');
+    if (ai1Toggle) ai1Toggle.checked = false;
+    if (ai2Toggle) ai2Toggle.checked = false;
+    if (typeof toggleAI1Mode === 'function') toggleAI1Mode();
+    if (typeof toggleAI2Mode === 'function') toggleAI2Mode();
 
     // 提示：先建立/加入房間
     document.getElementById('p1ModeLabel').textContent = '玩家一（房主）';
