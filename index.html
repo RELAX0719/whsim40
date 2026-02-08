@@ -1186,6 +1186,17 @@ html, body { height: 100%; font-family: "Microsoft JhengHei", "Noto Sans TC", sa
   </div>
 </div>
 
+<!-- 模組化 JavaScript 已準備完成，等待完整整合
+<script src="js/config.js"></script>
+<script src="js/gameState.js"></script>
+<script src="js/sound.js"></script>
+<script src="js/maps.js"></script>
+<script src="js/missions.js"></script>
+<script src="js/enhancements.js"></script>
+<script src="js/detachments.js"></script>
+<script src="js/presets.js"></script>
+-->
+
 <script>
 // ========== Firebase 連線系統 ==========
 const firebaseConfig = {
@@ -2186,6 +2197,12 @@ function playSound(type, options = {}) {
     case 'dice':
       playDiceSound(volume);
       break;
+    case 'phaseChange':
+      playPhaseChangeSound(volume);
+      break;
+    case 'stratagem':
+      playStratagemSound(volume);
+      break;
   }
 }
 
@@ -2469,6 +2486,57 @@ function playDiceSound(volume) {
       source.stop(audioContext.currentTime + 0.05);
     }, i * 50);
   }
+}
+
+// 階段轉換音效（上升音調）
+function playPhaseChangeSound(volume) {
+  const osc1 = audioContext.createOscillator();
+  const osc2 = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+
+  osc1.type = 'sine';
+  osc2.type = 'triangle';
+
+  // 上升音調
+  osc1.frequency.setValueAtTime(300, audioContext.currentTime);
+  osc1.frequency.linearRampToValueAtTime(600, audioContext.currentTime + 0.15);
+  osc2.frequency.setValueAtTime(450, audioContext.currentTime);
+  osc2.frequency.linearRampToValueAtTime(900, audioContext.currentTime + 0.15);
+
+  osc1.connect(gain);
+  osc2.connect(gain);
+  gain.connect(audioContext.destination);
+
+  gain.gain.setValueAtTime(volume * 0.15, audioContext.currentTime);
+  gain.gain.linearRampToValueAtTime(volume * 0.25, audioContext.currentTime + 0.1);
+  gain.gain.exponentialDecayTo(0.001, audioContext.currentTime + 0.3);
+
+  osc1.start();
+  osc2.start();
+  osc1.stop(audioContext.currentTime + 0.3);
+  osc2.stop(audioContext.currentTime + 0.3);
+}
+
+// 戰略使用音效
+function playStratagemSound(volume) {
+  const osc = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(440, audioContext.currentTime);
+  osc.frequency.setValueAtTime(550, audioContext.currentTime + 0.1);
+  osc.frequency.setValueAtTime(660, audioContext.currentTime + 0.2);
+
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
+
+  gain.gain.setValueAtTime(volume * 0.08, audioContext.currentTime);
+  gain.gain.setValueAtTime(volume * 0.1, audioContext.currentTime + 0.1);
+  gain.gain.setValueAtTime(volume * 0.12, audioContext.currentTime + 0.2);
+  gain.gain.exponentialDecayTo(0.001, audioContext.currentTime + 0.35);
+
+  osc.start();
+  osc.stop(audioContext.currentTime + 0.35);
 }
 
 // 創建白噪音緩衝區
@@ -6012,6 +6080,355 @@ function showAura(x, y, options = {}) {
     duration: options.duration || 2000,
     phase: 0
   });
+}
+
+// ===== 階段轉換橫幅 =====
+function showPhaseBanner(phase) {
+  const phaseInfo = {
+    command: { name: "指揮階段", icon: "📋", color: "#8b5cf6", desc: "戰術決策與戰略部署" },
+    movement: { name: "移動階段", icon: "🏃", color: "#22c55e", desc: "調動部隊佔領陣地" },
+    shooting: { name: "射擊階段", icon: "🔫", color: "#f59e0b", desc: "遠程火力壓制敵軍" },
+    charge: { name: "衝鋒階段", icon: "⚔️", color: "#ef4444", desc: "發起致命突擊" },
+    fight: { name: "近戰階段", icon: "💀", color: "#dc2626", desc: "白刃肉搏殊死戰" }
+  };
+
+  const info = phaseInfo[phase];
+  if (!info) return;
+
+  // 創建橫幅元素
+  const banner = document.createElement('div');
+  banner.className = 'phase-banner';
+  banner.innerHTML = `
+    <div class="phase-banner-content">
+      <span class="phase-icon">${info.icon}</span>
+      <div class="phase-text">
+        <div class="phase-name">${info.name}</div>
+        <div class="phase-desc">${info.desc}</div>
+      </div>
+    </div>
+  `;
+  banner.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    background: linear-gradient(135deg, ${info.color}dd, ${info.color}99);
+    border: 3px solid ${info.color};
+    border-radius: 16px;
+    padding: 20px 40px;
+    z-index: 10000;
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 10px 40px ${info.color}66, inset 0 0 30px rgba(255,255,255,0.1);
+    backdrop-filter: blur(10px);
+  `;
+
+  const content = banner.querySelector('.phase-banner-content');
+  content.style.cssText = `
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  `;
+
+  const iconEl = banner.querySelector('.phase-icon');
+  iconEl.style.cssText = `
+    font-size: 48px;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  `;
+
+  const textDiv = banner.querySelector('.phase-text');
+  textDiv.style.cssText = `
+    text-align: left;
+  `;
+
+  const nameEl = banner.querySelector('.phase-name');
+  nameEl.style.cssText = `
+    font-size: 28px;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    letter-spacing: 2px;
+  `;
+
+  const descEl = banner.querySelector('.phase-desc');
+  descEl.style.cssText = `
+    font-size: 14px;
+    color: rgba(255,255,255,0.8);
+    margin-top: 4px;
+  `;
+
+  document.body.appendChild(banner);
+
+  // 動畫：進入
+  requestAnimationFrame(() => {
+    banner.style.opacity = '1';
+    banner.style.transform = 'translate(-50%, -50%) scale(1)';
+  });
+
+  // 動畫：退出
+  setTimeout(() => {
+    banner.style.opacity = '0';
+    banner.style.transform = 'translate(-50%, -50%) scale(1.1)';
+    setTimeout(() => banner.remove(), 300);
+  }, 1200);
+
+  // 播放階段音效
+  playSound('phaseChange');
+}
+
+// ===== 回合結束摘要 =====
+function showTurnSummary(player) {
+  const playerName = player === 1 ? "玩家一" : "玩家二";
+  const playerColor = player === 1 ? "#3b82f6" : "#dc2626";
+
+  // 計算統計數據
+  const myUnits = gameState.units.filter(u => u.player === player);
+  const aliveUnits = myUnits.filter(u => u.alive).length;
+  const totalUnits = myUnits.length;
+  const controlledObj = gameState.objectives.filter(o => o.control === player).length;
+  const totalObj = gameState.objectives.length;
+  const kills = gameState.missionProgress?.[player]?.killedThisRound || 0;
+
+  const banner = document.createElement('div');
+  banner.innerHTML = `
+    <div class="turn-summary-title">${playerName} 回合結束</div>
+    <div class="turn-summary-stats">
+      <div class="summary-stat">
+        <div class="stat-icon">⚔️</div>
+        <div class="stat-value">${kills}</div>
+        <div class="stat-label">擊殺</div>
+      </div>
+      <div class="summary-stat">
+        <div class="stat-icon">🏴</div>
+        <div class="stat-value">${controlledObj}/${totalObj}</div>
+        <div class="stat-label">目標</div>
+      </div>
+      <div class="summary-stat">
+        <div class="stat-icon">👥</div>
+        <div class="stat-value">${aliveUnits}/${totalUnits}</div>
+        <div class="stat-label">單位</div>
+      </div>
+      <div class="summary-stat">
+        <div class="stat-icon">🏆</div>
+        <div class="stat-value">${gameState.vp[player]}</div>
+        <div class="stat-label">VP</div>
+      </div>
+    </div>
+  `;
+  banner.style.cssText = `
+    position: fixed;
+    bottom: 15%;
+    left: 50%;
+    transform: translateX(-50%) translateY(50px);
+    background: linear-gradient(135deg, rgba(30,30,30,0.95), rgba(50,50,50,0.9));
+    border: 2px solid ${playerColor};
+    border-radius: 12px;
+    padding: 15px 25px;
+    z-index: 9999;
+    opacity: 0;
+    transition: all 0.3s ease-out;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+    text-align: center;
+  `;
+
+  const titleEl = banner.querySelector('.turn-summary-title');
+  titleEl.style.cssText = `
+    font-size: 16px;
+    font-weight: bold;
+    color: ${playerColor};
+    margin-bottom: 12px;
+    letter-spacing: 1px;
+  `;
+
+  const statsEl = banner.querySelector('.turn-summary-stats');
+  statsEl.style.cssText = `
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+  `;
+
+  banner.querySelectorAll('.summary-stat').forEach(stat => {
+    stat.style.cssText = `
+      text-align: center;
+    `;
+  });
+
+  banner.querySelectorAll('.stat-icon').forEach(icon => {
+    icon.style.cssText = `
+      font-size: 20px;
+    `;
+  });
+
+  banner.querySelectorAll('.stat-value').forEach(val => {
+    val.style.cssText = `
+      font-size: 18px;
+      font-weight: bold;
+      color: #fbbf24;
+    `;
+  });
+
+  banner.querySelectorAll('.stat-label').forEach(label => {
+    label.style.cssText = `
+      font-size: 10px;
+      color: rgba(255,255,255,0.6);
+    `;
+  });
+
+  document.body.appendChild(banner);
+
+  // 動畫：進入
+  requestAnimationFrame(() => {
+    banner.style.opacity = '1';
+    banner.style.transform = 'translateX(-50%) translateY(0)';
+  });
+
+  // 動畫：退出
+  setTimeout(() => {
+    banner.style.opacity = '0';
+    banner.style.transform = 'translateX(-50%) translateY(-30px)';
+    setTimeout(() => banner.remove(), 300);
+  }, 1500);
+}
+
+// ===== VP 得分橫幅 =====
+function showVPScoringBanner(player, gain, objectives, vp1, vp2) {
+  const playerName = player === 1 ? "玩家一" : "玩家二";
+  const playerColor = player === 1 ? "#3b82f6" : "#dc2626";
+
+  const banner = document.createElement('div');
+  banner.innerHTML = `
+    <div class="vp-banner-content">
+      <div class="vp-gain">+${gain} VP</div>
+      <div class="vp-detail">${playerName} 控制 ${objectives} 個目標</div>
+      <div class="vp-score">
+        <span style="color: #3b82f6;">P1: ${vp1}</span>
+        <span style="margin: 0 15px; color: #888;">vs</span>
+        <span style="color: #dc2626;">P2: ${vp2}</span>
+      </div>
+    </div>
+  `;
+  banner.style.cssText = `
+    position: fixed;
+    top: 15%;
+    left: 50%;
+    transform: translateX(-50%) scale(0.8);
+    background: linear-gradient(135deg, ${playerColor}ee, ${playerColor}aa);
+    border: 3px solid ${playerColor};
+    border-radius: 16px;
+    padding: 20px 40px;
+    z-index: 10000;
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 10px 40px ${playerColor}66;
+    text-align: center;
+  `;
+
+  const gainEl = banner.querySelector('.vp-gain');
+  gainEl.style.cssText = `
+    font-size: 36px;
+    font-weight: bold;
+    color: #fbbf24;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+  `;
+
+  const detailEl = banner.querySelector('.vp-detail');
+  detailEl.style.cssText = `
+    font-size: 14px;
+    color: rgba(255,255,255,0.9);
+    margin-top: 8px;
+  `;
+
+  const scoreEl = banner.querySelector('.vp-score');
+  scoreEl.style.cssText = `
+    font-size: 18px;
+    font-weight: bold;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.3);
+  `;
+
+  document.body.appendChild(banner);
+
+  // 動畫：進入
+  requestAnimationFrame(() => {
+    banner.style.opacity = '1';
+    banner.style.transform = 'translateX(-50%) scale(1)';
+  });
+
+  // 動畫：退出
+  setTimeout(() => {
+    banner.style.opacity = '0';
+    banner.style.transform = 'translateX(-50%) scale(0.9)';
+    setTimeout(() => banner.remove(), 300);
+  }, 2000);
+}
+
+// ===== 回合開始橫幅 =====
+function showRoundBanner(round) {
+  const banner = document.createElement('div');
+  banner.innerHTML = `
+    <div class="round-banner-content">
+      <div class="round-number">第 ${round} 回合</div>
+      <div class="round-subtitle">BATTLE ROUND ${round}</div>
+    </div>
+  `;
+  banner.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.5);
+    background: linear-gradient(135deg, rgba(30,30,30,0.95), rgba(50,50,50,0.9));
+    border: 4px solid #fbbf24;
+    border-radius: 20px;
+    padding: 30px 60px;
+    z-index: 10001;
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 15px 50px rgba(251, 191, 36, 0.4), inset 0 0 40px rgba(251, 191, 36, 0.1);
+    text-align: center;
+  `;
+
+  const content = banner.querySelector('.round-banner-content');
+  content.style.cssText = `
+    text-align: center;
+  `;
+
+  const numberEl = banner.querySelector('.round-number');
+  numberEl.style.cssText = `
+    font-size: 48px;
+    font-weight: bold;
+    color: #fbbf24;
+    text-shadow: 0 0 20px #fbbf24, 0 4px 8px rgba(0,0,0,0.5);
+    letter-spacing: 4px;
+  `;
+
+  const subtitleEl = banner.querySelector('.round-subtitle');
+  subtitleEl.style.cssText = `
+    font-size: 16px;
+    color: rgba(255,255,255,0.7);
+    margin-top: 8px;
+    letter-spacing: 6px;
+    font-weight: 300;
+  `;
+
+  document.body.appendChild(banner);
+
+  // 動畫：進入
+  requestAnimationFrame(() => {
+    banner.style.opacity = '1';
+    banner.style.transform = 'translate(-50%, -50%) scale(1)';
+  });
+
+  // 動畫：退出
+  setTimeout(() => {
+    banner.style.opacity = '0';
+    banner.style.transform = 'translate(-50%, -50%) scale(1.2)';
+    setTimeout(() => {
+      banner.remove();
+      // 回合橫幅消失後顯示階段橫幅
+      showPhaseBanner('command');
+    }, 400);
+  }, 1500);
 }
 
 // ===== 拖尾效果 =====
@@ -12423,7 +12840,11 @@ function selectUnit(unit) {
       setHint(`點擊戰場移動 ${unit.name}（最大 ${unit.stats.M}"）`);
     } else if (phase === "shooting" && !unit.hasShot && unit.weapons.ranged) {
       gameState.currentAction = "shoot";
-      setHint(`點擊敵方單位作為 ${unit.name} 的射擊目標`);
+      if (unit.isInEngagement && unit.weapons.ranged.keywords?.includes("Pistol")) {
+        setHint(`🔫 ${unit.name} 使用Pistol射擊接戰中的敵人`);
+      } else {
+        setHint(`點擊敵方單位作為 ${unit.name} 的射擊目標`);
+      }
     } else if (phase === "charge" && !unit.hasCharged && !unit.battleShocked) {
       gameState.currentAction = "charge";
       setHint(`點擊戰場位置進行衝鋒（2D6）`);
@@ -12905,6 +13326,24 @@ async function executeAction() {
     }
   }
 
+  // ===== Pistol（手槍）規則 - 官方10版 =====
+  // 接戰中的單位使用Pistol武器時，只能射擊接戰中的敵人
+  if (gameState.currentAction === "shoot" && attacker.isInEngagement) {
+    const hasPistol = attacker.weapons?.ranged?.keywords?.includes("Pistol");
+    if (!hasPistol) {
+      log(`❌ ${attacker.name} 在接戰中無法射擊（沒有Pistol武器）！`, "miss");
+      clearAction();
+      return;
+    }
+    // 檢查目標是否在接戰範圍內
+    if (!isInEngagementWith(attacker, target)) {
+      log(`❌ Pistol武器在接戰中只能射擊接戰範圍內的敵人！`, "miss");
+      clearAction();
+      return;
+    }
+    log(`[Pistol] ${attacker.name} 在接戰中使用手槍射擊`, "info");
+  }
+
   // 如果已經預先選擇了武器（新流程），直接使用
   if (gameState.selectedWeapon) {
     const weapon = gameState.selectedWeapon;
@@ -12974,6 +13413,11 @@ async function executeAction() {
       } else if (w.oneUse && attacker.usedOneUseWeapons?.[w.name]) {
         available = false;
         reason = "已使用";
+      }
+      // 官方10版規則：接戰中只能使用Pistol武器
+      if (attacker.isInEngagement && !w.keywords?.includes("Pistol")) {
+        available = false;
+        reason = "接戰中只能使用Pistol";
       }
       return { ...w, available, reason };
     });
@@ -14170,6 +14614,8 @@ async function performAttack(attacker, target, weapon, mode) {
     ignoresCover: weaponKeywords.includes("Ignores Cover"),
     heavy: weaponKeywords.some(k => k === "Heavy" || k.startsWith("Heavy ")),
     assault: weaponKeywords.some(k => k === "Assault" || k.startsWith("Assault ")),
+    pistol: weaponKeywords.includes("Pistol"),       // 可在接戰中射擊
+    lance: weaponKeywords.includes("Lance"),         // 衝鋒回合+1傷害
     rapidFire: 0,
     melta: 0,
     anti: null,
@@ -14498,17 +14944,50 @@ async function performAttack(attacker, target, weapon, mode) {
 
   log(`豁免擲骰: ${saveRolls.join(", ")} (需要 ${saveNeed}+${target.inCover ? " 含掩護" : ""})`, "info");
 
+  // 顯示每個豁免骰結果的視覺效果
+  const savedCount = saveRolls.filter(r => r >= saveNeed).length;
+  const failedRegular = saveRolls.filter(r => r < saveNeed).length;
+
+  // 顯示成功豁免數
+  if (savedCount > 0) {
+    showFloatingText(target.x - 25, target.y - 40, `🛡${savedCount}`, {
+      color: "#22c55e",
+      fontSize: 14,
+      duration: 1200
+    });
+  }
+
+  // 顯示失敗豁免數
+  if (failedRegular > 0) {
+    showFloatingText(target.x + 25, target.y - 40, `💔${failedRegular}`, {
+      color: "#ef4444",
+      fontSize: 14,
+      duration: 1200
+    });
+  }
+
   // [Devastating Wounds] 致傷骰6無視豁免，直接計入失敗豁免
   const regularSaveRolls = wounds - devastatingWounds;
-  const failed = saveRolls.filter(r => r < saveNeed).length + devastatingWounds;
+  const failed = failedRegular + devastatingWounds;
+
+  // 顯示毀滅傷害（如果有）
+  if (devastatingWounds > 0) {
+    showFloatingText(target.x, target.y - 55, `☠️ ${devastatingWounds}無視豁免`, {
+      color: "#dc2626",
+      fontSize: 12,
+      duration: 1500
+    });
+  }
+
   log(`失敗豁免: ${failed}/${wounds}${devastatingWounds > 0 ? ` (含${devastatingWounds}毀滅傷害)` : ''}`, failed > 0 ? "damage" : "hit");
 
   if (failed === 0) {
-    showFloatingText(target.x, target.y, "🛡️ 豁免!", {
+    showFloatingText(target.x, target.y, "🛡️ 全部豁免!", {
       color: "#22cc66",
-      fontSize: 16,
-      duration: 1000
+      fontSize: 18,
+      duration: 1200
     });
+    showAura(target.x, target.y, { radius: 30, color: 'rgba(34, 197, 94, 0.4)', duration: 800 });
     return;
   }
 
@@ -14530,6 +15009,12 @@ async function performAttack(attacker, target, weapon, mode) {
     }
     // 加上單位能力傷害加成（如不可阻擋：衝鋒+1傷害）
     dmg = parseInt(dmg) + (abilityBonus.damageBonus || 0);
+
+    // [Lance] 衝鋒回合傷害+1（官方10版規則）
+    if (weaponEffects.lance && attacker.hasCharged) {
+      dmg += 1;
+      if (i === 0) log(`[Lance] 衝鋒回合傷害+1`, "info");
+    }
 
     // [Melta X] 半射程內傷害+X
     if (weaponEffects.melta > 0 && isHalfRange) {
@@ -14741,18 +15226,71 @@ function resolveDeadlyDemise(destroyedUnit) {
 
 function resolveHazardous(attacker, weapon) {
   if (!weapon || !weapon.keywords || !weapon.keywords.includes("Hazardous")) return;
-  // 10版：使用Hazardous武器完成攻擊後，擲1D6；若為1，承受3點致命傷（簡化：直接扣HP）
+
+  // 顯示 Hazardous 警告
+  showFloatingText(attacker.x, attacker.y - 40, "⚠️ HAZARDOUS", {
+    color: "#fbbf24",
+    fontSize: 14,
+    duration: 1000
+  });
+
+  // 10版：使用Hazardous武器完成攻擊後，擲1D6；若為1，承受3點致命傷
   const r = rollD6();
+
+  // 顯示骰子結果
+  setTimeout(() => {
+    showFloatingText(attacker.x, attacker.y - 25, `🎲 ${r}`, {
+      color: r === 1 ? "#dc2626" : "#22c55e",
+      fontSize: 18,
+      duration: 1200
+    });
+  }, 500);
+
   log(`⚠️ Hazardous 檢定: ${r} (1會回火)`, "info");
+
   if (r === 1) {
     const mortals = 3;
+
+    // 回火視覺效果
+    setTimeout(() => {
+      playSound('explosion', { size: 'small' });
+      showExplosion(attacker.x, attacker.y, {
+        radius: 25,
+        type: 'fire',
+        particles: 10,
+        shake: true
+      });
+      showFloatingText(attacker.x, attacker.y, `💥 回火! -${mortals}`, {
+        color: "#dc2626",
+        fontSize: 20,
+        duration: 1500
+      });
+      showAura(attacker.x, attacker.y, { radius: 40, color: 'rgba(220, 38, 38, 0.5)', duration: 1000 });
+    }, 800);
+
     attacker.currentHP -= mortals;
     log(`💥 ${attacker.name} 受到 Hazardous 回火：-${mortals} HP`, "damage");
+
     if (attacker.currentHP <= 0) {
       attacker.currentHP = 0;
       attacker.alive = false;
       log(`💀 ${attacker.name} 因回火被消滅！`, "damage");
+      // 添加死亡效果
+      setTimeout(() => {
+        playSound('death');
+        addCrater(attacker.x, attacker.y, 30);
+        showExplosion(attacker.x, attacker.y, { radius: 50, type: 'fire', particles: 20 });
+      }, 1200);
     }
+  } else {
+    // 安全通過視覺效果
+    setTimeout(() => {
+      showFloatingText(attacker.x, attacker.y, "✓ 穩定", {
+        color: "#22c55e",
+        fontSize: 14,
+        duration: 800
+      });
+    }, 800);
   }
 }
 
@@ -14823,6 +15361,19 @@ function updateAllEngagementStatus() {
       checkEngagement(unit);
     }
   }
+}
+
+// 檢測特定目標是否在攻擊者的接戰範圍內（用於Pistol規則）
+function isInEngagementWith(attacker, target) {
+  if (!attacker || !target || !attacker.alive || !target.alive) return false;
+  if (attacker.player === target.player) return false;
+
+  const attackerSize = getUnitBaseSize(attacker);
+  const targetSize = getUnitBaseSize(target);
+  const dist = Math.hypot(target.x - attacker.x, target.y - attacker.y);
+  const engagementDist = attackerSize + targetSize + inchToPixels(1);
+
+  return dist <= engagementDist;
 }
 
 // ===== Leader（領袖）附加系統 - 官方10版規則 =====
@@ -14970,6 +15521,10 @@ async function executeCommandPhase() {
   if (gain > 0) {
     log(`🏆 ${playerName}控制 ${controlCount} 個目標 → +${gain} VP (總計: ${prevVP} → ${gameState.vp[gameState.currentPlayer]})`, "phase");
     playSound('click');
+
+    // 顯示 VP 得分總覽橫幅
+    showVPScoringBanner(gameState.currentPlayer, gain, controlCount, gameState.vp[1], gameState.vp[2]);
+
     // 在控制的目標上顯示VP獲得提示
     const controlledObjs = gameState.objectives.filter(o => o.control === gameState.currentPlayer);
     controlledObjs.forEach((obj, i) => {
@@ -15002,18 +15557,52 @@ async function executeCommandPhase() {
     }
   }
 
-  // 戰慄測試
+  // 戰慄測試（官方10版規則：半強度以下的單位需要進行戰慄測試）
   const currentUnits = gameState.units.filter(u => u.player === gameState.currentPlayer && u.alive);
   for (const unit of currentUnits) {
-    if (unit.currentHP <= unit.maxHP / 2) {
-      const roll = rollD6() + rollD6();
+    // 檢查是否低於半強度
+    const halfStrength = unit.maxHP / 2;
+    const isBelowHalf = unit.currentHP <= halfStrength;
+
+    // 小隊單位：也檢查模型數量
+    const modelsBelowHalf = unit.isSquad && unit.modelsAlive <= Math.floor(unit.modelCount / 2);
+
+    if (isBelowHalf || modelsBelowHalf) {
+      const d1 = rollD6();
+      const d2 = rollD6();
+      const roll = d1 + d2;
+
+      // 顯示骰子動畫
+      if (enableDiceAnimation) {
+        showFloatingText(unit.x, unit.y - 30, `🎲 戰慄測試: ${d1}+${d2}=${roll}`, {
+          color: "#fbbf24",
+          fontSize: 14,
+          duration: 1500
+        });
+      }
+
       if (roll >= unit.stats.Ld) {
         unit.battleShocked = false;
         log(`${unit.name} 戰慄測試通過 (${roll} ≥ ${unit.stats.Ld}+)`, "hit");
+        showFloatingText(unit.x, unit.y, "✓ 穩住!", {
+          color: "#22c55e",
+          fontSize: 16,
+          duration: 1200
+        });
       } else {
         unit.battleShocked = true;
         log(`${unit.name} 戰慄！OC變為0 (${roll} < ${unit.stats.Ld}+)`, "miss");
+        showFloatingText(unit.x, unit.y, "💀 戰慄!", {
+          color: "#dc2626",
+          fontSize: 18,
+          duration: 1500
+        });
+        showAura(unit.x, unit.y, { radius: 35, color: 'rgba(220, 38, 38, 0.4)', duration: 1200 });
       }
+    } else if (unit.battleShocked) {
+      // 如果單位恢復到半強度以上，自動解除戰慄
+      unit.battleShocked = false;
+      log(`${unit.name} 恢復士氣（高於半強度）`, "info");
     }
   }
 
@@ -15066,6 +15655,10 @@ async function startCommandPhase() {
   if (gain > 0) {
     log(`🏆 ${playerName}控制 ${controlCount} 個目標 → +${gain} VP (總計: ${prevVP} → ${gameState.vp[gameState.currentPlayer]})`, "phase");
     playSound('click');
+
+    // 顯示 VP 得分總覽橫幅
+    showVPScoringBanner(gameState.currentPlayer, gain, controlCount, gameState.vp[1], gameState.vp[2]);
+
     // 在控制的目標上顯示VP獲得提示
     const controlledObjs = gameState.objectives.filter(o => o.control === gameState.currentPlayer);
     controlledObjs.forEach((obj, i) => {
@@ -15290,6 +15883,9 @@ async function nextPhase() {
     gameState.phase = phases[currentIndex + 1];
     log(`進入【${getPhaseNameChinese(gameState.phase)}】`, "phase");
 
+    // 顯示階段轉換橫幅
+    showPhaseBanner(gameState.phase);
+
     // 移動階段開始時更新所有單位的接戰狀態
     if (gameState.phase === "movement") {
       updateAllEngagementStatus();
@@ -15360,6 +15956,9 @@ function endTurn() {
   const endingPlayer = gameState.currentPlayer;
   checkTacticalObjectives(endingPlayer);
 
+  // 顯示回合結束摘要
+  showTurnSummary(endingPlayer);
+
   // 切換玩家
   gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
 
@@ -15399,6 +15998,9 @@ function endTurn() {
 
     // 新回合不再清空日誌，保留歷史記錄
     log(`══════ 第 ${gameState.round} 回合開始 ══════`, "phase");
+
+    // 顯示回合開始橫幅
+    showRoundBanner(gameState.round);
 
     // 保留死亡單位屍體在戰場上（不再清除）
   }
@@ -15521,11 +16123,18 @@ function updateActionButtons() {
     btnFallBack.disabled = !(phase === "movement" && isMyUnit && !unit?.hasMoved && unit?.isInEngagement);
     btnFallBack.style.display = unit?.isInEngagement ? "inline-block" : "none";
   }
-  // 射擊按鈕：考慮急行和撤退限制
+  // 射擊按鈕：考慮急行和撤退限制、接戰範圍限制
   let canShoot = phase === "shooting" && isMyUnit && !unit?.hasShot && !unit?.hasFallenBack;
   if (unit?.hasAdvanced && unit?.weapons?.ranged) {
     const hasAssault = unit.weapons.ranged.keywords?.some(k => k === "Assault" || k.startsWith("Assault "));
     canShoot = canShoot && hasAssault;
+  }
+  // 官方10版規則：接戰中的單位無法射擊（除非使用Pistol武器）
+  if (unit?.isInEngagement && unit?.weapons?.ranged) {
+    const hasPistol = unit.weapons.ranged.keywords?.includes("Pistol");
+    if (!hasPistol) {
+      canShoot = false;
+    }
   }
   document.getElementById("btnShoot").disabled = !canShoot;
   // 衝鋒按鈕：考慮急行和撤退限制
@@ -16063,27 +16672,60 @@ function render() {
 
   // 繪製目標點
   const OBJ_RANGE = inchToPixels(3);
+  const pulseTime = Date.now() / 1000; // 用於動畫
   for (const obj of gameState.objectives) {
-    // 控制範圍
+    const isControlled = obj.control !== null;
+    const pulseScale = isControlled ? 1 + Math.sin(pulseTime * 3) * 0.1 : 1;
+
+    // 控制範圍（受控目標會有脈動效果）
     ctx.beginPath();
-    ctx.arc(obj.x, obj.y, OBJ_RANGE, 0, Math.PI * 2);
-    ctx.strokeStyle = obj.control === 1 ? "rgba(59,130,246,0.6)" :
-                      obj.control === 2 ? "rgba(220,38,38,0.6)" :
-                      "rgba(251,191,36,0.4)";
-    ctx.lineWidth = 2;
+    ctx.arc(obj.x, obj.y, OBJ_RANGE * pulseScale, 0, Math.PI * 2);
+    if (obj.control === 1) {
+      ctx.strokeStyle = "rgba(59,130,246,0.7)";
+      ctx.fillStyle = "rgba(59,130,246,0.15)";
+    } else if (obj.control === 2) {
+      ctx.strokeStyle = "rgba(220,38,38,0.7)";
+      ctx.fillStyle = "rgba(220,38,38,0.15)";
+    } else {
+      ctx.strokeStyle = "rgba(251,191,36,0.5)";
+      ctx.fillStyle = "rgba(251,191,36,0.08)";
+    }
+    ctx.lineWidth = isControlled ? 3 : 2;
+    ctx.fill();
     ctx.stroke();
 
-    // 標記
+    // 外圈光暈（控制時更明顯）
+    if (isControlled) {
+      const glowRadius = 18 + Math.sin(pulseTime * 4) * 3;
+      ctx.beginPath();
+      ctx.arc(obj.x, obj.y, glowRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = obj.control === 1 ? "rgba(59,130,246,0.4)" : "rgba(220,38,38,0.4)";
+      ctx.lineWidth = 4;
+      ctx.stroke();
+    }
+
+    // 標記圓形
     ctx.beginPath();
-    ctx.arc(obj.x, obj.y, 12, 0, Math.PI * 2);
+    ctx.arc(obj.x, obj.y, 14, 0, Math.PI * 2);
     ctx.fillStyle = obj.control === 1 ? "#3b82f6" :
                     obj.control === 2 ? "#dc2626" : "#fbbf24";
     ctx.fill();
-    ctx.font = "bold 12px sans-serif";
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // 目標編號
+    ctx.font = "bold 14px sans-serif";
     ctx.fillStyle = "#fff";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(obj.id.toString(), obj.x, obj.y);
+
+    // 控制旗幟圖示
+    if (isControlled) {
+      ctx.font = "16px sans-serif";
+      ctx.fillText("🏴", obj.x, obj.y - 22);
+    }
   }
 
   // 繪製移動/射擊範圍（選中單位時自動顯示）
@@ -16231,15 +16873,34 @@ function render() {
     }
     // ===== 結束小隊繪製 =====
 
-    // 選中光環
+    // 選中光環（帶脈動效果）
     if (isSelected) {
+      const pulseTime = performance.now() / 1000;
+      const pulseScale = 1 + Math.sin(pulseTime * 4) * 0.08;
+      const pulseOpacity = 0.6 + Math.sin(pulseTime * 3) * 0.3;
+
+      // 外圈光暈
+      ctx.beginPath();
+      ctx.arc(unit.x, unit.y, (BASE_SIZE + 12) * pulseScale, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(251, 191, 36, ${pulseOpacity * 0.4})`;
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      // 主選中框
       ctx.beginPath();
       ctx.arc(unit.x, unit.y, BASE_SIZE + 6, 0, Math.PI * 2);
-      ctx.strokeStyle = "#fbbf24";
+      ctx.strokeStyle = `rgba(251, 191, 36, ${pulseOpacity})`;
       ctx.lineWidth = 3;
       ctx.setLineDash([4, 4]);
       ctx.stroke();
       ctx.setLineDash([]);
+    }
+
+    // 狀態指示器：已行動（半透明遮罩）
+    const hasActed = (unit.hasMoved && unit.hasShot && gameState.phase !== "fight") ||
+                     (unit.hasFought && gameState.phase === "fight");
+    if (hasActed && unit.player === gameState.currentPlayer) {
+      ctx.globalAlpha = 0.4;
     }
 
     // 玩家顏色底圈
@@ -16362,7 +17023,52 @@ function render() {
 
     ctx.fillStyle = "#fbbf24";
     ctx.textAlign = "center";
-    ctx.fillText(`OC${unit.stats.OC} HP${unit.currentHP}`, unit.x, labelY);
+    ctx.fillText(`OC${unit.battleShocked ? 0 : unit.stats.OC} HP${unit.currentHP}`, unit.x, labelY);
+
+    // 狀態圖標列（右側）
+    let iconX = unit.x + BASE_SIZE + 12;
+    const iconY = unit.y;
+    ctx.font = "10px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    // 已移動
+    if (unit.hasMoved && unit.player === gameState.currentPlayer) {
+      ctx.fillStyle = "rgba(34,197,94,0.8)";
+      ctx.beginPath();
+      ctx.arc(iconX, iconY - 10, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.fillText("🏃", iconX, iconY - 10);
+      iconX += 14;
+    }
+
+    // 已射擊
+    if (unit.hasShot && unit.player === gameState.currentPlayer) {
+      ctx.fillStyle = "rgba(251,191,36,0.8)";
+      ctx.beginPath();
+      ctx.arc(iconX, iconY - 10, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.fillText("🔫", iconX, iconY - 10);
+      iconX += 14;
+    }
+
+    // 已衝鋒
+    if (unit.hasCharged && unit.player === gameState.currentPlayer) {
+      ctx.fillStyle = "rgba(239,68,68,0.8)";
+      ctx.beginPath();
+      ctx.arc(iconX, iconY - 10, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.fillText("⚔️", iconX, iconY - 10);
+    }
+
+    // 接戰中指示器
+    if (unit.isInEngagement) {
+      ctx.font = "12px sans-serif";
+      ctx.fillText("⚔", unit.x, unit.y + BASE_SIZE + 22);
+    }
 
     ctx.globalAlpha = 1;
   }
